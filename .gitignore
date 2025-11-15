@@ -1,0 +1,6 @@
+# Executables
+./calc
+./debug_calc
+
+# Misc. Files
+**.o
