@@ -1,6 +1,6 @@
 # Executables
-./calc
-./debug_calc
+calc
+calc_debug
 
 # Misc. Files
 **.o
