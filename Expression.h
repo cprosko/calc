@@ -8,6 +8,8 @@
 #include <regex>
 #include <string>
 #include <string_view>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 class Calculator; // Forward declaration
@@ -32,32 +34,28 @@ public:
     Cosh,
     Tanh,
   };
-  struct OperatorMap {
-    std::string_view key;
-    Operator value;
-  };
 
   // Ensure default constructor exists even though we've defined others
   Expression()
-      : expression_(), is_parsed_(false), is_calculated_(false),
-        is_validated_(false), is_atomic_(false), result_(0.0), operator_(),
-        operands_(std::vector<Expression>()) {}
+      : expression_(), trimmedExpression_(), is_parsed_(false),
+        is_calculated_(false), is_validated_(false), is_atomic_(false),
+        result_(0.0), operator_(), operands_(std::vector<Expression>()) {}
   explicit Expression(const std::string &expression)
-      : expression_(expression), is_parsed_(false), is_calculated_(false),
-        is_validated_(false), is_atomic_(false), result_(0.0), operator_(),
-        operands_(std::vector<Expression>()) {
+      : expression_(expression), trimmedExpression_(), is_parsed_(false),
+        is_calculated_(false), is_validated_(false), is_atomic_(false),
+        result_(0.0), operator_(), operands_(std::vector<Expression>()) {
     parse_();
   }
 
   // Static functions
   static double calculate(const std::string &numOperator,
                           const double &operand) {
-    return calculate_(parsedOperator_(numOperator), operand);
+    return calculate_(operators_.at(numOperator), operand);
   }
   static double calculate(const std::string &numOperator,
                           const double &leftOperand,
                           const double &rightOperand) {
-    return calculate_(parsedOperator_(numOperator), leftOperand, rightOperand);
+    return calculate_(operators_.at(numOperator), leftOperand, rightOperand);
   }
 
   // Public methods
@@ -76,30 +74,17 @@ public:
 
 private:
   // Private constants
-  static constexpr std::array operators = {
-      OperatorMap{"+", Operator::Plus},    OperatorMap{"-", Operator::Minus},
-      OperatorMap{"*", Operator::Times},   OperatorMap{"x", Operator::Times},
-      OperatorMap{"/", Operator::Divide},  OperatorMap{"^", Operator::Pow},
-      OperatorMap{"e^", Operator::Exp},    OperatorMap{"exp", Operator::Exp},
-      OperatorMap{"sqrt", Operator::Sqrt}, OperatorMap{"ln", Operator::Ln},
-      OperatorMap{"log", Operator::Log},   OperatorMap{"sin", Operator::Sin},
-      OperatorMap{"cos", Operator::Cos},   OperatorMap{"tan", Operator::Tan},
-      OperatorMap{"sinh", Operator::Sinh}, OperatorMap{"cosh", Operator::Cosh},
-      OperatorMap{"tanh", Operator::Tanh},
+  static const std::unordered_map<std::string_view, Operator> operators_;
+  static constexpr std::array<char, 6> binOperators_{
+      '+', '-', '*', 'x', '/', '^',
   };
-  static const std::regex validExprPattern_;
-  static const std::regex validNumberPattern_;
+  static const std::regex exprPattern_;
+  static const std::regex numberPattern_;
+  static const std::regex operandPattern_;
+  static const std::regex funcPattern_;
 
   // Private methods
   static const std::string escapeRegex(std::string_view str);
-  static constexpr Operator
-  parsedOperator_(const std::string_view &operatorStr) {
-    for (auto &&opStr : operators)
-      if (opStr.key == operatorStr)
-        return opStr.value;
-    throw std::runtime_error("No operator found matching " +
-                             std::string(operatorStr) + ".");
-  }
   static double parsedNumber_(const std::string &numStr);
   void validate_(const std::string &expression);
   void parse_();
@@ -120,10 +105,12 @@ private:
     if (std::isnan(num))
       std::cout << "Warning: num is NaN." << '\n';
   }
-  static const std::regex constructValidExprPattern_();
+  static const std::regex constructExprPattern_();
+  static const std::regex constructOperandPattern_();
 
   // Private variables
   std::string expression_;
+  std::string trimmedExpression_;
   bool is_parsed_;
   bool is_calculated_;
   bool is_validated_;

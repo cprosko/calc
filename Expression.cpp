@@ -11,6 +11,9 @@
 #include <stdexcept>
 #include <string>
 
+// Namespaces
+using namespace std::string_literals;
+
 void Expression::set_expression(const std::string &expression) {
   is_parsed_ = false;
   is_calculated_ = false;
@@ -66,15 +69,19 @@ const std::string Expression::escapeRegex(std::string_view str) {
 }
 
 double Expression::parsedNumber_(const std::string &numStr) {
-  double num;
-  auto numMinuses(std::count(numStr.begin(), numStr.end(), '-'));
-  int multiplier{numMinuses % 2 == 0 ? +1 : -1};
-  num = multiplier;
-  return num;
+  std::string cleaned;
+  // Remove any parentheses and whitespace from the string
+  cleaned.reserve(numStr.size());
+  for (char c : numStr) {
+    if (c == '(' || c == ')' || std::isspace(static_cast<unsigned char>(c)))
+      continue;
+    cleaned += c;
+  }
+  // Convert from std::string to double
+  return std::stod(cleaned);
 }
 
 void Expression::validate_(const std::string &expression) {
-  // TODO
   // Check parentheses are matched
   auto leftBrackets{std::count(expression.begin(), expression.end(), '(')};
   if (leftBrackets != std::count(expression.begin(), expression.end(), ')'))
@@ -83,11 +90,20 @@ void Expression::validate_(const std::string &expression) {
   std::string trimmedExpression{expression};
   std::erase_if(trimmedExpression,
                 [](unsigned char c) { return std::isspace(c); });
+  // Remove unnecessary outer parentheses
+  if (trimmedExpression.front() == '(' && trimmedExpression.back() == ')') {
+    trimmedExpression.erase(trimmedExpression.begin());
+    trimmedExpression.pop_back();
+  }
+  // Remove leading '+' sign
+  if (trimmedExpression.front() == '+')
+    trimmedExpression.erase(trimmedExpression.begin());
   // Check operators are all valid
-  if (!std::regex_match(expression, validExprPattern_)) {
+  if (!std::regex_match(expression, exprPattern_)) {
     throw std::runtime_error(
         "Invalid operators or numbers present in expression.");
   }
+  trimmedExpression_ = trimmedExpression;
   return;
 }
 
@@ -95,13 +111,71 @@ void Expression::parse_() {
   if (!is_validated_) {
     validate_(expression_);
   }
-  if (std::regex_match(expression_, validNumberPattern_)) {
+  operands_.clear();
+  // Check if expression is just a number
+  if (!is_atomic_ && std::regex_match(trimmedExpression_, numberPattern_)) {
     is_atomic_ = true;
-    result_ = parsedNumber_(expression_);
+    result_ = parsedNumber_(trimmedExpression_);
     is_calculated_ = true;
     return;
   }
-  // TODO parse non-atomic expressions
+  // Break expression down into subexpressions
+  // based on 'BEDMAS' arithmetic rules
+  // Outer parentheses were removed in trimmedExpression_ during validation
+
+  // Checking for -1 multiplier only requires looking at first character, so do
+  // this first
+  if (trimmedExpression_.front() == '-') {
+    operands_.push_back(Expression("-1"));
+    operator_ = Operator::Times;
+    operands_.push_back(Expression(trimmedExpression_.substr(1)));
+    return;
+  }
+
+  std::smatch match; // initialized on below line
+  if (!std::regex_match(trimmedExpression_, match, operandPattern_)) {
+    throw std::runtime_error("Invalid syntax in expression " + expression_);
+  }
+  if (match[7].matched) {
+    // First block including exponent is only one operand in this expression
+    char firstChar{match[7].str().front()};
+    operands_.push_back(Expression(match[1].str() + match[5].str()));
+    if (std::find(binOperators_.begin(), binOperators_.end(), firstChar) !=
+        binOperators_.end()) {
+      // Next character is a binary operator (e.g. +, -, x, /, *, ^)
+      std::string_view charStr(&firstChar, 1);
+      operator_ = operators_.at(charStr);
+      operands_.push_back(Expression(match[7].str().substr(1)));
+    } else {
+      // Next part is just a factor to multiply operands_[0] by
+      operator_ = Operator::Times;
+      operands_.push_back(Expression(match[7].str()));
+    }
+    return;
+  }
+  // match[1] and match[5] are entire expression, so need to be broken down
+  if (match[5].matched) {
+    // Expression is of form match[1]^match[6]
+    if (match[1].str() == "e") {
+      operator_ = Operator::Exp;
+      operands_.push_back(Expression(match[6].str())); // exponent contents
+    } else {
+      operator_ = Operator::Pow;
+      operands_.push_back(Expression(match[1].str())); // base contents
+      operands_.push_back(Expression(match[6].str())); // exponent contents
+    }
+    return;
+  }
+  // No exponent in base expression, need to break down match[1]
+  // Because !match[5].matched, this must be a math function
+  std::smatch funcMatch;
+  if (!std::regex_match(match[1].first, match[1].second, funcMatch,
+                        funcPattern_))
+    throw std::runtime_error("Expected function at beginning of expression but "
+                             "none was found: check syntax.");
+  operator_ = operators_.at(funcMatch[1].str());
+  operands_.push_back(Expression(funcMatch[3].str()));
+  // TODO: this doesn't account for BEDMAS: e.g. 4+3*2
   return;
 }
 
@@ -190,28 +264,62 @@ double Expression::calculate_(const Operator &numOperator,
   return result_;
 }
 
-const std::regex Expression::constructValidExprPattern_() {
+const std::regex Expression::constructExprPattern_() {
   std::string pattern;
   bool first{true};
-  for (OperatorMap op : operators) {
+  for (const auto &[key, value] : operators_) {
     if (!first)
       pattern += '|';
-    pattern += escapeRegex(op.key);
+    pattern += escapeRegex(key);
     first = false;
   }
-  pattern = "^(" + pattern + "|-|\\+|/|\\^|\\*|\\)|\\d+\\.?\\d*)+$";
+  pattern = R"(^()"s + pattern + R"(|\(|\)|\d+\.?\d*)+$)";
   // TODO: remove this debug code
-  std::cout << "validExprPattern: " << pattern << '\n';
+  std::cout << "exprPattern: " << pattern << '\n';
   return std::regex(pattern);
 }
 
-const std::regex Expression::validExprPattern_{constructValidExprPattern_()};
-const std::regex Expression::validNumberPattern_{
-    std::regex(R"(-?\(?-?+?\d+\.?\d+\)?)")};
+const std::regex Expression::constructOperandPattern_() {
+  std::string pattern{
+      // base block (group 1), inner brackets (opt., group 2, 3, 4)
+      R"(^(\((.*)\)|[a-z]+(\(.*?\)|(\d+\.?\d*))|\d+\.?\d*|e))"s
+      // check for exponent (opt., group 5), inner brackets (opt., group 6)
+      + R"((\^(\(.*?\)|\d+\.?\d*))?)" +
+      R"((.+)?)" // Remaining operators and blocks (opt., group 7)
+      + R"($)"   // end of string
+  };
+  // TODO: remove this debug code
+  std::cout << "operandPattern: " << pattern << '\n';
+  return std::regex(pattern);
+}
+
+const std::unordered_map<std::string_view, Expression::Operator>
+    Expression::operators_{{"+", Expression::Operator::Plus},
+                           {"-", Expression::Operator::Minus},
+                           {"*", Expression::Operator::Times},
+                           {"x", Expression::Operator::Times},
+                           {"/", Expression::Operator::Divide},
+                           {"^", Expression::Operator::Pow},
+                           {"e^", Expression::Operator::Exp},
+                           {"exp", Expression::Operator::Exp},
+                           {"sqrt", Expression::Operator::Sqrt},
+                           {"ln", Expression::Operator::Ln},
+                           {"log", Expression::Operator::Log},
+                           {"sin", Expression::Operator::Sin},
+                           {"cos", Expression::Operator::Cos},
+                           {"tan", Expression::Operator::Tan},
+                           {"sinh", Expression::Operator::Sinh},
+                           {"cosh", Expression::Operator::Cosh},
+                           {"tanh", Expression::Operator::Tanh}};
+const std::regex Expression::exprPattern_{constructExprPattern_()};
+const std::regex Expression::numberPattern_{std::regex(R"(\d+\.?\d+)")};
+const std::regex Expression::operandPattern_{constructOperandPattern_()};
+const std::regex Expression::funcPattern_{std::regex(R"(([a-z]+)\(?(.*)\)?)")};
 
 #ifdef EXPRESSION_DEBUG
 int main() {
   std::cout << "Running debug main()." << '\n';
-  return 0;
+  Expression testExpr1 = Expression("sin(3.14159/2)");
+  std::cout << "Result: " << testExpr1.result() << '\n';
 }
 #endif
