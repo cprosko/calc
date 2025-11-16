@@ -94,18 +94,27 @@ void Expression::validate_(const std::string &expression) {
   std::string trimmedExpression{expression};
   std::erase_if(trimmedExpression,
       [](unsigned char c) { return std::isspace(c); });
+#ifdef EXPRESSION_DEBUG
+  std::cout << "Expression after whitespace trimming: " << trimmedExpression << '\n';
+#endif
   // Remove unnecessary outer parentheses
   if (trimmedExpression.front() == '(' && trimmedExpression.back() == ')') {
     trimmedExpression.erase(trimmedExpression.begin());
     trimmedExpression.pop_back();
   }
+#ifdef EXPRESSION_DEBUG
+  std::cout << "Expression after parenthesis removal: " << trimmedExpression << '\n';
+#endif
   // Remove leading '+' sign
   if (trimmedExpression.front() == '+')
     trimmedExpression.erase(trimmedExpression.begin());
+#ifdef EXPRESSION_DEBUG
+  std::cout << "Expression after '+' removal: " << trimmedExpression << '\n';
+#endif
   // Check operators are all valid
-  if (!std::regex_match(expression, exprPattern_)) {
+  if (!std::regex_match(trimmedExpression, exprPattern_)) {
     throw std::runtime_error(
-        "Invalid operators or numbers present in expression.");
+        "Invalid operators or numbers present in expression: "+trimmedExpression);
   }
   trimmedExpression_ = trimmedExpression;
   return;
@@ -138,6 +147,9 @@ void Expression::parse_() {
   // Checking for -1 multiplier only requires looking at first character, so do
   // this first
   if (trimmedExpression_.front() == '-') {
+#ifdef EXPRESSION_DEBUG
+    std::cout << "Expression type: -1 multiplier\n";
+#endif
     operands_.push_back(Expression("-1"));
     operator_ = Operator::Times;
     operands_.push_back(Expression(trimmedExpression_.substr(1)));
@@ -154,11 +166,17 @@ void Expression::parse_() {
     operands_.push_back(Expression(match[1].str() + match[5].str()));
     if (std::find(binOperators_.begin(), binOperators_.end(), firstChar) !=
         binOperators_.end()) {
+#ifdef EXPRESSION_DEBUG
+      std::cout << "Expression type: a +|-|x|/|*|^ b\n";
+#endif
       // Next character is a binary operator (e.g. +, -, x, /, *, ^)
       std::string_view charStr(&firstChar, 1);
       operator_ = operators_.at(charStr);
       operands_.push_back(Expression(match[7].str().substr(1)));
     } else {
+#ifdef EXPRESSION_DEBUG
+      std::cout << "Expression type: (a)(b)\n";
+#endif
       // Next part is just a factor to multiply operands_[0] by
       operator_ = Operator::Times;
       operands_.push_back(Expression(match[7].str()));
@@ -169,9 +187,15 @@ void Expression::parse_() {
   if (match[5].matched) {
     // Expression is of form match[1]^match[6]
     if (match[1].str() == "e") {
+#ifdef EXPRESSION_DEBUG
+      std::cout << "Expression type: e^a\n";
+#endif
       operator_ = Operator::Exp;
       operands_.push_back(Expression(match[6].str())); // exponent contents
     } else {
+#ifdef EXPRESSION_DEBUG
+      std::cout << "Expression type: a^b\n";
+#endif
       operator_ = Operator::Pow;
       operands_.push_back(Expression(match[1].str())); // base contents
       operands_.push_back(Expression(match[6].str())); // exponent contents
@@ -185,8 +209,11 @@ void Expression::parse_() {
         funcPattern_))
     throw std::runtime_error("Expected function at beginning of expression but "
         "none was found: check syntax.");
+#ifdef EXPRESSION_DEBUG
+  std::cout << "Expression type: func(a)\n";
+#endif
   operator_ = operators_.at(funcMatch[1].str());
-  operands_.push_back(Expression(funcMatch[3].str()));
+  operands_.push_back(Expression(funcMatch[2].str()));
   // TODO: this doesn't account for BEDMAS: e.g. 4+3*2
   return;
 }
@@ -296,7 +323,7 @@ const std::regex Expression::constructExprPattern_() {
 const std::regex Expression::constructOperandPattern_() {
   std::string pattern{
     // base block (group 1), inner brackets (opt., group 2, 3, 4)
-    R"(^(\((.*)\)|[a-z]+(\(.*?\)|(\d+\.?\d*))|\d+\.?\d*|e))"s
+    R"(^(\((.*)\)|[a-z]+(\(.*\)|(\d+\.?\d*))|\d+\.?\d*|e))"s
       // check for exponent (opt., group 5), inner brackets (opt., group 6)
       + R"((\^(\(.*?\)|\d+\.?\d*))?)" +
       R"((.+)?)" // Remaining operators and blocks (opt., group 7)
@@ -330,7 +357,7 @@ Expression::operators_{{"+", Expression::Operator::Plus},
 const std::regex Expression::exprPattern_{constructExprPattern_()};
 const std::regex Expression::numberPattern_{std::regex(R"(\d+\.?\d*)")};
 const std::regex Expression::operandPattern_{constructOperandPattern_()};
-const std::regex Expression::funcPattern_{std::regex(R"(([a-z]+)\(?(.*)\)?)")};
+const std::regex Expression::funcPattern_{std::regex(R"(([a-z]+)\(?(.*?)\)?)")};
 
 #ifdef EXPRESSION_DEBUG
 int main() {
@@ -342,7 +369,7 @@ int main() {
       Expression("sin(3.14159/2)"),
   };
   for (Expression expr : expressions) {
-    std::cout << "Result: " << expr.result() << '\n';
+    std::cout << "Result:\n" << expr.result() << "\n\n";
   }
 }
 #endif
