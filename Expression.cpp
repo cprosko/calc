@@ -96,9 +96,10 @@ void Expression::validate_(const std::string &expression) {
   // Trim whitespace
   std::string trimmedExpression{expression};
   std::erase_if(trimmedExpression,
-      [](unsigned char c) { return std::isspace(c); });
+                [](unsigned char c) { return std::isspace(c); });
 #ifdef EXPRESSION_DEBUG
-  std::cout << "Expression after whitespace trimming: " << trimmedExpression << '\n';
+  std::cout << "Expression after whitespace trimming: " << trimmedExpression
+            << '\n';
 #endif
   // Remove unnecessary outer parentheses
   if (trimmedExpression.front() == '(' && trimmedExpression.back() == ')') {
@@ -106,7 +107,8 @@ void Expression::validate_(const std::string &expression) {
     trimmedExpression.pop_back();
   }
 #ifdef EXPRESSION_DEBUG
-  std::cout << "Expression after parenthesis removal: " << trimmedExpression << '\n';
+  std::cout << "Expression after parenthesis removal: " << trimmedExpression
+            << '\n';
 #endif
   // Remove leading '+' sign
   if (trimmedExpression.front() == '+')
@@ -117,7 +119,8 @@ void Expression::validate_(const std::string &expression) {
   // Check operators are all valid
   if (!std::regex_match(trimmedExpression, exprPattern_)) {
     throw std::runtime_error(
-        "Invalid operators or numbers present in expression: "+trimmedExpression);
+        "Invalid operators or numbers present in expression: " +
+        trimmedExpression);
   }
   trimmedExpression_ = trimmedExpression;
   return;
@@ -188,7 +191,12 @@ void Expression::parse_() {
   }
   // match[1] and match[5] are entire expression, so need to be broken down
   if (match[5].matched) {
-    // Expression is of form match[1]^match[6]
+    // Expression is of form match[1]^match[6|7]
+    std::string exponent{match[5].str()};
+    if (match[6].matched)
+      exponent = match[6].str();
+    if (match[7].matched)
+      exponent = match[6].str();
     if (match[1].str() == "e") {
 #ifdef EXPRESSION_DEBUG
       std::cout << "Expression type: e^a\n";
@@ -209,9 +217,9 @@ void Expression::parse_() {
   // Because !match[5].matched, this must be a math function
   std::smatch funcMatch;
   if (!std::regex_match(match[1].first, match[1].second, funcMatch,
-        funcPattern_))
+                        funcPattern_))
     throw std::runtime_error("Expected function at beginning of expression but "
-        "none was found: check syntax.");
+                             "none was found: check syntax.");
 #ifdef EXPRESSION_DEBUG
   std::cout << "Expression type: func(a)\n";
 #endif
@@ -222,86 +230,86 @@ void Expression::parse_() {
 }
 
 double Expression::calculate_(const Operator &numOperator,
-    const double &operand) {
+                              const double &operand) {
   double value{std::numeric_limits<double>::quiet_NaN()};
   switch (numOperator) {
-    case Operator::Exp:
-      value = std::exp(operand);
-      break;
-    case Operator::Sqrt:
-      value = std::sqrt(operand);
-      break;
-    case Operator::Ln:
-      value = std::log(operand);
-      break;
-    case Operator::Log:
-      value = std::log10(operand);
-      break;
-    case Operator::Sin:
-      value = std::sin(operand);
-      break;
-    case Operator::Cos:
-      value = std::cos(operand);
-      break;
-    case Operator::Tan:
-      value = std::tan(operand);
-      break;
-    case Operator::Sinh:
-      value = std::sinh(operand);
-      break;
-    case Operator::Cosh:
-      value = std::cosh(operand);
-      break;
-    case Operator::Tanh:
-      value = std::tanh(operand);
-      break;
-    default:
-      throw std::runtime_error("Invalid operator given single operand.");
+  case Operator::Exp:
+    value = std::exp(operand);
+    break;
+  case Operator::Sqrt:
+    value = std::sqrt(operand);
+    break;
+  case Operator::Ln:
+    value = std::log(operand);
+    break;
+  case Operator::Log:
+    value = std::log10(operand);
+    break;
+  case Operator::Sin:
+    value = std::sin(operand);
+    break;
+  case Operator::Cos:
+    value = std::cos(operand);
+    break;
+  case Operator::Tan:
+    value = std::tan(operand);
+    break;
+  case Operator::Sinh:
+    value = std::sinh(operand);
+    break;
+  case Operator::Cosh:
+    value = std::cosh(operand);
+    break;
+  case Operator::Tanh:
+    value = std::tanh(operand);
+    break;
+  default:
+    throw std::runtime_error("Invalid operator given single operand.");
   }
   checkNaN_(value);
   return value;
 }
 
 double Expression::calculate_(const Operator &numOperator,
-    const double &leftOperand,
-    const double &rightOperand) {
+                              const double &leftOperand,
+                              const double &rightOperand) {
   double value{std::numeric_limits<double>::quiet_NaN()};
   switch (numOperator) {
-    case Operator::Plus:
-      value = leftOperand + rightOperand;
-      break;
-    case Operator::Minus:
-      value = leftOperand - rightOperand;
-      break;
-    case Operator::Times:
-      value = leftOperand * rightOperand;
-      break;
-    case Operator::Divide:
-      value = leftOperand / rightOperand;
-      break;
-    case Operator::Pow:
-      value = std::pow(leftOperand, rightOperand);
-      break;
-    default:
-      throw std::runtime_error("Invalid operator given two operands.");
+  case Operator::Plus:
+    value = leftOperand + rightOperand;
+    break;
+  case Operator::Minus:
+    value = leftOperand - rightOperand;
+    break;
+  case Operator::Times:
+    value = leftOperand * rightOperand;
+    break;
+  case Operator::Divide:
+    value = leftOperand / rightOperand;
+    break;
+  case Operator::Pow:
+    value = std::pow(leftOperand, rightOperand);
+    break;
+  default:
+    throw std::runtime_error("Invalid operator given two operands.");
   }
   checkNaN_(value);
   return value;
 }
 
 double Expression::calculate_(const Operator &numOperator,
-    std::vector<Expression> operands) {
+                              std::vector<Expression> operands) {
   switch (operands.size()) {
-    case 1:
-      result_ = calculate_(numOperator, operands[0]);
-      break;
-    case 2:
-      result_ = calculate_(numOperator, operands[0], operands[1]);
-      break;
-    default:
-      throw std::runtime_error(
-          "Error: Expression has an invalid number of operands (" +
-          std::to_string(operands.size()) + ")");
+  case 1:
+    result_ = calculate_(numOperator, operands[0]);
+    break;
+  case 2:
+    result_ = calculate_(numOperator, operands[0], operands[1]);
+    break;
+  default:
+    throw std::runtime_error(
+        "Error: Expression has an invalid number of operands (" +
+        std::to_string(operands.size()) + ")");
   }
   return result_;
 }
@@ -325,13 +333,12 @@ const std::regex Expression::constructExprPattern_() {
 
 const std::regex Expression::constructOperandPattern_() {
   std::string pattern{
-    // base block (group 1), inner brackets (opt., group 2, 3, 4)
-    R"(^(\((.*?)\)|[a-z]+(\(.*?\)|(\d+\.?\d*))|\d+\.?\d*|e))"s
-      // check for exponent (opt., group 5), inner brackets (opt., group 6)
-      + R"((\^(\(.*?\)|\d+\.?\d*))?)" +
-      R"((.+?)?)" // Remaining operators and blocks (opt., group 7)
-      + R"($)"   // end of string
-  };
+      // base block (group 1), inner brackets (opt., group 2, 3, 4)
+      R"(^(\((.*?)\)|[a-z]+(\(.*?\)|(\d+\.?\d*))|\d+\.?\d*|e))"s
+      // check for exponent (opt., group 5), inner brackets (opt., group 6, 7)
+      + R"((\^(\(.*?\)|[a-z]+(\(.*?\))|\d+\.?\d*))?)"
+      // Remaining operators and blocks (opt., group 7)
+      + R"((.+?)?$)"};
   // TODO: remove this debug code
 #ifdef EXPRESSION_DEBUG
   std::cout << "operandPattern: " << pattern << '\n';
@@ -340,23 +347,23 @@ const std::regex Expression::constructOperandPattern_() {
 }
 
 const std::unordered_map<std::string_view, Expression::Operator>
-Expression::operators_{{"+", Expression::Operator::Plus},
-  {"-", Expression::Operator::Minus},
-  {"*", Expression::Operator::Times},
-  {"x", Expression::Operator::Times},
-  {"/", Expression::Operator::Divide},
-  {"^", Expression::Operator::Pow},
-  {"e^", Expression::Operator::Exp},
-  {"exp", Expression::Operator::Exp},
-  {"sqrt", Expression::Operator::Sqrt},
-  {"ln", Expression::Operator::Ln},
-  {"log", Expression::Operator::Log},
-  {"sin", Expression::Operator::Sin},
-  {"cos", Expression::Operator::Cos},
-  {"tan", Expression::Operator::Tan},
-  {"sinh", Expression::Operator::Sinh},
-  {"cosh", Expression::Operator::Cosh},
-  {"tanh", Expression::Operator::Tanh}};
+    Expression::operators_{{"+", Expression::Operator::Plus},
+                           {"-", Expression::Operator::Minus},
+                           {"*", Expression::Operator::Times},
+                           {"x", Expression::Operator::Times},
+                           {"/", Expression::Operator::Divide},
+                           {"^", Expression::Operator::Pow},
+                           {"e^", Expression::Operator::Exp},
+                           {"exp", Expression::Operator::Exp},
+                           {"sqrt", Expression::Operator::Sqrt},
+                           {"ln", Expression::Operator::Ln},
+                           {"log", Expression::Operator::Log},
+                           {"sin", Expression::Operator::Sin},
+                           {"cos", Expression::Operator::Cos},
+                           {"tan", Expression::Operator::Tan},
+                           {"sinh", Expression::Operator::Sinh},
+                           {"cosh", Expression::Operator::Cosh},
+                           {"tanh", Expression::Operator::Tanh}};
 const std::regex Expression::exprPattern_{constructExprPattern_()};
 const std::regex Expression::numberPattern_{std::regex(R"(\d+\.?\d*)")};
 const std::regex Expression::operandPattern_{constructOperandPattern_()};
@@ -365,19 +372,15 @@ const std::regex Expression::funcPattern_{std::regex(R"(([a-z]+)\(?(.*?)\)?)")};
 #ifdef EXPRESSION_DEBUG
 int main() {
   std::cout << "Running debug main()." << '\n';
-  std::vector<Expression> expressions{
-    // Check basic operations
-    Expression("1.23"),
-    Expression("2.0*3"),
-    Expression("2.0^3.0"),
-    // Check BEDMAS
-    Expression("5x3+2"),
-    Expression("5+3x2"),
-    // Check functions
-    Expression("sin(3.14159/2)"),
-    // Check more complicated expressions
-    Expression("ln(2)xsin(3.14159/2)^3.0")
-  };
+  std::vector<Expression> expressions{// Check basic operations
+                                      Expression("1.23"), Expression("2.0*3"),
+                                      Expression("2.0^3.0"),
+                                      // Check BEDMAS
+                                      Expression("5x3+2"), Expression("5+3x2"),
+                                      // Check functions
+                                      Expression("sin(3.14159/2)"),
+                                      // Check more complicated expressions
+                                      Expression("ln(2)xsin(3.14159/2)^3.0")};
   for (Expression expr : expressions) {
     std::cout << "Result:\n" << expr.result() << "\n\n";
   }
