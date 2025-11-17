@@ -202,14 +202,14 @@ void Expression::parse_() {
       std::cout << "Expression type: e^a\n";
 #endif
       operator_ = Operator::Exp;
-      operands_.push_back(Expression(match[6].str())); // exponent contents
+      operands_.push_back(Expression(exponent)); // exponent contents
     } else {
 #ifdef EXPRESSION_DEBUG
       std::cout << "Expression type: a^b\n";
 #endif
       operator_ = Operator::Pow;
       operands_.push_back(Expression(match[1].str())); // base contents
-      operands_.push_back(Expression(match[6].str())); // exponent contents
+      operands_.push_back(Expression(exponent)); // exponent contents
     }
     return;
   }
