@@ -34,6 +34,9 @@ double Expression::result() {
   if (!is_parsed_) {
     parse_();
   }
+#ifndef EXPRESSION_DEBUG
+  std::cout << "Operator: " << static_cast<int>(operator_) << '\n';
+#endif
   if (is_atomic_) {
     return result_; // Value has been calculated inside parse_()
   }
@@ -323,10 +326,10 @@ const std::regex Expression::constructExprPattern_() {
 const std::regex Expression::constructOperandPattern_() {
   std::string pattern{
     // base block (group 1), inner brackets (opt., group 2, 3, 4)
-    R"(^(\((.*)\)|[a-z]+(\(.*\)|(\d+\.?\d*))|\d+\.?\d*|e))"s
+    R"(^(\((.*?)\)|[a-z]+(\(.*?\)|(\d+\.?\d*))|\d+\.?\d*|e))"s
       // check for exponent (opt., group 5), inner brackets (opt., group 6)
       + R"((\^(\(.*?\)|\d+\.?\d*))?)" +
-      R"((.+)?)" // Remaining operators and blocks (opt., group 7)
+      R"((.+?)?)" // Remaining operators and blocks (opt., group 7)
       + R"($)"   // end of string
   };
   // TODO: remove this debug code
@@ -363,10 +366,17 @@ const std::regex Expression::funcPattern_{std::regex(R"(([a-z]+)\(?(.*?)\)?)")};
 int main() {
   std::cout << "Running debug main()." << '\n';
   std::vector<Expression> expressions{
+    // Check basic operations
     Expression("1.23"),
-      Expression("2.0*3"),
-      Expression("2.0^3.0"),
-      Expression("sin(3.14159/2)"),
+    Expression("2.0*3"),
+    Expression("2.0^3.0"),
+    // Check BEDMAS
+    Expression("5x3+2"),
+    Expression("5+3x2"),
+    // Check functions
+    Expression("sin(3.14159/2)"),
+    // Check more complicated expressions
+    Expression("ln(2)xsin(3.14159/2)^3.0")
   };
   for (Expression expr : expressions) {
     std::cout << "Result:\n" << expr.result() << "\n\n";
