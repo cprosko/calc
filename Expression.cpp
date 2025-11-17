@@ -196,7 +196,7 @@ void Expression::parse_() {
     if (match[6].matched)
       exponent = match[6].str();
     if (match[7].matched)
-      exponent = match[6].str();
+      exponent = match[7].str();
     if (match[1].str() == "e") {
 #ifdef EXPRESSION_DEBUG
       std::cout << "Expression type: e^a\n";
