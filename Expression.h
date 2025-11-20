@@ -18,6 +18,7 @@ class Expression {
 public:
   // Enums
   enum class Operator {
+    None,
     Plus,
     Minus,
     Times,
@@ -34,15 +35,24 @@ public:
     Cosh,
     Tanh,
   };
+  // Structs
+  struct TokenizedExpression {
+    std::vector<Expression> tokens;
+    Operator                 function;
+    std::vector<Operator>    binOps;
+  };
 
   // Ensure default constructor exists even though we've defined others
   Expression()
       : expression_(), trimmedExpression_(), is_parsed_(false),
         is_calculated_(false), is_validated_(false), is_atomic_(false),
-        result_(0.0), operator_(), operands_(std::vector<Expression>()) {}
-  explicit Expression(const std::string &expression)
+        show_calculation_(false), is_subexpression_(false), result_(0.0),
+        operator_(), operands_(std::vector<Expression>()) {}
+  explicit Expression(const std::string &expression,
+                      bool is_subexpression = false)
       : expression_(expression), trimmedExpression_(), is_parsed_(false),
         is_calculated_(false), is_validated_(false), is_atomic_(false),
+        show_calculation_(false), is_subexpression_(is_subexpression),
         result_(0.0), operator_(), operands_(std::vector<Expression>()) {
     parse_();
   }
@@ -75,25 +85,23 @@ public:
 private:
   // Private constants
   static const std::unordered_map<std::string_view, Operator> operators_;
-  static constexpr std::array<char, 6> binOperators_{
-      '+', '-', '*', 'x', '/', '^',
-  };
   static const std::regex exprPattern_;
-  static const std::regex numberPattern_;
-  static const std::regex operandPattern_;
-  static const std::regex funcPattern_;
+  static const std::regex numToken_;
+  static const std::regex funcToken_;
 
   // Private methods
   static const std::string escapeRegex(std::string_view str);
   static double parsedNumber_(const std::string &numStr);
   void validate_(const std::string &expression);
   void parse_();
+  static const TokenizedExpression tokenizedExpression_(const std::string &expression);
+  static const int closingBracketIndex_(const std::string &str);
   double calculate_(const Operator &numOperator,
-                    std::vector<Expression> operands);
-  double calculate_(const Operator &numOperator, Expression &operand) {
+                    std::vector<Expression> &operands);
+  static double calculate_(const Operator &numOperator, Expression &operand) {
     return calculate_(numOperator, operand.result());
   }
-  double calculate_(const Operator &numOperator, Expression &leftOperand,
+  static double calculate_(const Operator &numOperator, Expression &leftOperand,
                     Expression &rightOperand) {
     return calculate_(numOperator, leftOperand.result(), rightOperand.result());
   }
@@ -106,7 +114,6 @@ private:
       std::cout << "Warning: num is NaN." << '\n';
   }
   static const std::regex constructExprPattern_();
-  static const std::regex constructOperandPattern_();
 
   // Private variables
   std::string expression_;
@@ -115,6 +122,8 @@ private:
   bool is_calculated_;
   bool is_validated_;
   bool is_atomic_;
+  bool show_calculation_;
+  bool is_subexpression_;
   double result_;
   Operator operator_;
   std::vector<Expression> operands_;

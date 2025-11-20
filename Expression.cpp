@@ -47,8 +47,11 @@ double Expression::result() {
 }
 
 void Expression::print_calculation() {
-  // TODO
-  std::cout << "TODO" << '\n';
+  show_calculation_ = true;
+  is_calculated_ = false;
+  parse_();
+  std::cout << "Result: " << result_ << '\n';
+  show_calculation_ = false;
 }
 
 bool Expression::is_atomic() {
@@ -127,6 +130,7 @@ void Expression::validate_(const std::string &expression) {
 }
 
 void Expression::parse_() {
+  // TODO: Add printing statements when show_calculation_ == true
   if (!is_validated_) {
     validate_(expression_);
   }
@@ -136,7 +140,7 @@ void Expression::parse_() {
 #endif
   operands_.clear();
   // Check if expression is just a number
-  if (!is_atomic_ && std::regex_match(trimmedExpression_, numberPattern_)) {
+  if (!is_atomic_ && std::regex_match(trimmedExpression_, numToken_)) {
     // TODO: remove debug code
 #ifdef EXPRESSION_DEBUG
     std::cout << "atomic!\n";
@@ -149,90 +153,145 @@ void Expression::parse_() {
   // Break expression down into subexpressions
   // based on 'BEDMAS' arithmetic rules
   // Outer parentheses were removed in trimmedExpression_ during validation
+  Expression::TokenizedExpression components{
+      tokenizedExpression_(trimmedExpression_)};
+  if (components.tokens.size() == 1) {
+    if (!components.binOps.empty())
+      throw std::runtime_error("Found dangling operators in expression.");
+    operator_ = components.function;
+    operands_.push_back(components.tokens[0]);
+    return;
+  }
+  if (components.tokens.size() == 2) {
+    if (components.binOps.size() != 1)
+      throw std::runtime_error("Mismatched number of operators in expression.");
+    operator_ = components.binOps[0];
+    operands_.push_back(components.tokens[0]);
+    operands_.push_back(components.tokens[1]);
+    return;
+  }
+  // Need to apply BEDMAS to effectively 'insert brackets' into the expression
+  // determining the order in which to calculate each
+}
 
-  // Checking for -1 multiplier only requires looking at first character, so do
-  // this first
-  if (trimmedExpression_.front() == '-') {
-#ifdef EXPRESSION_DEBUG
-    std::cout << "Expression type: -1 multiplier\n";
-#endif
-    operands_.push_back(Expression("-1"));
-    operator_ = Operator::Times;
-    operands_.push_back(Expression(trimmedExpression_.substr(1)));
-    return;
+const Expression::TokenizedExpression
+Expression::tokenizedExpression_(const std::string &expression) {
+  std::vector<Expression> subexpressions;
+  Expression::Operator function;                     // on whole expression
+  std::vector<Expression::Operator> binaryOperators; // between subexpressions
+  std::string remainingExpression;
+  // Check for leading operators
+  switch (expression.front()) {
+  case '-':
+    subexpressions.push_back(Expression("-1"));
+    binaryOperators.push_back(Expression::Operator::Times);
+    remainingExpression = expression.substr(1);
+    break;
+  case '+':
+    remainingExpression = expression.substr(1);
+    break;
+  case 'x':
+  case '/':
+  case '*':
+  case '^':
+    throw std::runtime_error("Leading binary operator found in expression.");
+  default:
+    remainingExpression = expression;
+  }
+  if (expression.front() == '-') {
+  } else {
+    remainingExpression = expression;
   }
 
-  std::smatch match; // initialized on below line
-  if (!std::regex_match(trimmedExpression_, match, operandPattern_)) {
-    throw std::runtime_error("Invalid syntax in expression " + expression_);
-  }
-  if (match[7].matched) {
-    // First block including exponent is only one operand in this expression
-    char firstChar{match[7].str().front()};
-    operands_.push_back(Expression(match[1].str() + match[5].str()));
-    if (std::find(binOperators_.begin(), binOperators_.end(), firstChar) !=
-        binOperators_.end()) {
-#ifdef EXPRESSION_DEBUG
-      std::cout << "Expression type: a +|-|x|/|*|^ b\n";
-#endif
-      // Next character is a binary operator (e.g. +, -, x, /, *, ^)
-      std::string_view charStr(&firstChar, 1);
-      operator_ = operators_.at(charStr);
-      operands_.push_back(Expression(match[7].str().substr(1)));
-    } else {
-#ifdef EXPRESSION_DEBUG
-      std::cout << "Expression type: (a)(b)\n";
-#endif
-      // Next part is just a factor to multiply operands_[0] by
-      operator_ = Operator::Times;
-      operands_.push_back(Expression(match[7].str()));
+  // Tokenize the string from left to right into subexpressions and operators
+  bool prevTokenWasBinOp{true};
+  std::smatch match;
+  while (true) {
+    int closingIndex; // End index of token
+    bool foundMatch{false}; // Used to avoid regex matching when unnecessary
+    char frontChar{remainingExpression.front()};
+    switch (frontChar) {
+    case '+':
+    case '-':
+    case 'x':
+    case '*':
+    case '/':
+    case '^':
+      binaryOperators.push_back(
+          Expression::operators_.at(std::string(1, frontChar)));
+      prevTokenWasBinOp = true;
+      remainingExpression = remainingExpression.substr(1);
+      continue;
+    case '(':
+      closingIndex = Expression::closingBracketIndex_(remainingExpression);
+      subexpressions.push_back(
+          Expression(remainingExpression.substr(0, closingIndex)));
+      remainingExpression = remainingExpression.substr(closingIndex + 1);
+      prevTokenWasBinOp = false;
+      foundMatch = true;
     }
-    return;
-  }
-  // match[1] and match[5] are entire expression, so need to be broken down
-  if (match[5].matched) {
-    // Expression is of form match[1]^match[6|7]
-    std::string exponent{match[5].str()};
-    if (match[6].matched)
-      exponent = match[6].str();
-    if (match[7].matched)
-      exponent = match[7].str();
-    if (match[1].str() == "e") {
-#ifdef EXPRESSION_DEBUG
-      std::cout << "Expression type: e^a\n";
-#endif
-      operator_ = Operator::Exp;
-      operands_.push_back(Expression(exponent)); // exponent contents
+    // Is remaining expression wrapped in brackets?
+    if (!foundMatch && std::regex_match(remainingExpression, match, numToken_)) {
+      subexpressions.push_back(Expression(match[1].str()));
+      closingIndex = match[1].length();
+      remainingExpression = match[2].str();
+      prevTokenWasBinOp = false;
+    } else if (!foundMatch && std::regex_match(remainingExpression, match, funcToken_)) {
+      if (!match[2].matched)
+        throw std::runtime_error("Function in expression without argument.");
+      closingIndex = Expression::closingBracketIndex_(match[2].str());
+      std::string argument{match[2].str().substr(0, closingIndex)};
+      // Account for size of function and opening bracket
+      closingIndex += match[1].length() + 1;
+      if (closingIndex == remainingExpression.size()) {
+        // expression is just function call on inner expression
+        function = Expression::operators_.at(match[1].str());
+        subexpressions.push_back(Expression(argument));
+      } else {
+        subexpressions.push_back(
+            Expression(remainingExpression.substr(0, closingIndex)));
+        prevTokenWasBinOp = false;
+      }
     } else {
-#ifdef EXPRESSION_DEBUG
-      std::cout << "Expression type: a^b\n";
-#endif
-      operator_ = Operator::Pow;
-      operands_.push_back(Expression(match[1].str())); // base contents
-      operands_.push_back(Expression(exponent)); // exponent contents
+      throw std::runtime_error("Unexpected token found during tokenization.");
     }
-    return;
+    if (prevTokenWasBinOp)
+      binaryOperators.push_back(Expression::Operator::Times);
+    if (closingIndex == remainingExpression.size())
+      break;
+    foundMatch = false;
   }
-  // No exponent in base expression, need to break down match[1]
-  // Because !match[5].matched, this must be a math function
-  std::smatch funcMatch;
-  if (!std::regex_match(match[1].first, match[1].second, funcMatch,
-                        funcPattern_))
-    throw std::runtime_error("Expected function at beginning of expression but "
-                             "none was found: check syntax.");
-#ifdef EXPRESSION_DEBUG
-  std::cout << "Expression type: func(a)\n";
-#endif
-  operator_ = operators_.at(funcMatch[1].str());
-  operands_.push_back(Expression(funcMatch[2].str()));
-  // TODO: this doesn't account for BEDMAS: e.g. 4+3*2
-  return;
+  Expression::TokenizedExpression result;
+  return result;
+}
+
+const int Expression::closingBracketIndex_(const std::string &str) {
+  // Find char index of ')' matching some '(' at front or left of string
+  // Returns -1 if no match is found.
+  int unclosedBrackets{str.front() == '(' ? 0 : 1};
+  int charInd;
+  for (charInd = 0; charInd < str.size(); ++charInd) {
+    char c{str[charInd]};
+    if (c == '(') {
+      unclosedBrackets++;
+      continue;
+    }
+    if (c == ')' && --unclosedBrackets == 0) {
+      break;
+    }
+  }
+  if (unclosedBrackets == 0)
+    return charInd;
+  return -1;
 }
 
 double Expression::calculate_(const Operator &numOperator,
                               const double &operand) {
   double value{std::numeric_limits<double>::quiet_NaN()};
   switch (numOperator) {
+  case Operator::None:
+    value = operand;
+    break;
   case Operator::Exp:
     value = std::exp(operand);
     break;
@@ -298,7 +357,7 @@ double Expression::calculate_(const Operator &numOperator,
 }
 
 double Expression::calculate_(const Operator &numOperator,
-                              std::vector<Expression> operands) {
+                              std::vector<Expression> &operands) {
   switch (operands.size()) {
   case 1:
     result_ = calculate_(numOperator, operands[0]);
@@ -331,21 +390,6 @@ const std::regex Expression::constructExprPattern_() {
   return std::regex(pattern);
 }
 
-const std::regex Expression::constructOperandPattern_() {
-  std::string pattern{
-      // base block (group 1), inner brackets (opt., group 2, 3, 4)
-      R"(^(\((.*?)\)|[a-z]+(\(.*?\)|(\d+\.?\d*))|\d+\.?\d*|e))"s
-      // check for exponent (opt., group 5), inner brackets (opt., group 6, 7)
-      + R"((\^(\(.*?\)|[a-z]+(\(.*?\))|\d+\.?\d*))?)"
-      // Remaining operators and blocks (opt., group 7)
-      + R"((.+?)?$)"};
-  // TODO: remove this debug code
-#ifdef EXPRESSION_DEBUG
-  std::cout << "operandPattern: " << pattern << '\n';
-#endif
-  return std::regex(pattern);
-}
-
 const std::unordered_map<std::string_view, Expression::Operator>
     Expression::operators_{{"+", Expression::Operator::Plus},
                            {"-", Expression::Operator::Minus},
@@ -365,9 +409,8 @@ const std::unordered_map<std::string_view, Expression::Operator>
                            {"cosh", Expression::Operator::Cosh},
                            {"tanh", Expression::Operator::Tanh}};
 const std::regex Expression::exprPattern_{constructExprPattern_()};
-const std::regex Expression::numberPattern_{std::regex(R"(\d+\.?\d*)")};
-const std::regex Expression::operandPattern_{constructOperandPattern_()};
-const std::regex Expression::funcPattern_{std::regex(R"(([a-z]+)\(?(.*?)\)?)")};
+const std::regex Expression::numToken_{std::regex(R"(^(\d+\.?\d*)(.*))")};
+const std::regex Expression::funcToken_{std::regex(R"(^([a-z]+|e^)\((.+))")};
 
 #ifdef EXPRESSION_DEBUG
 int main() {
