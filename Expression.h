@@ -38,54 +38,62 @@ public:
   };
   // Structs
   struct TokenizedExpression {
-    std::vector<Expression> tokens;
-    Operator function;
-    std::vector<Operator> binOps;
+    std::vector<Expression> tokens = std::vector<Expression>();
+    std::vector<Operator> binOps = std::vector<Operator>();
+    Operator function = Operator::None;
   };
   struct Step {
-    std::vector<Operator> operators;
-    std::vector<Expression> operands;
+    std::vector<Operator> operators = std::vector<Operator>();
+    std::vector<Expression> operands = std::vector<Expression>();
   };
 
   // Ensure default constructor exists even though we've defined others
   Expression()
       : expression_(), trimmedExpression_(), isValidated_(false),
         isParsed_(false), isTokenized_(false), isCalculated_(false),
-        isAtomic_(false), showCalculation_(false), result_(0.0), outerStep_(),
-        tokens_() {}
+        isAtomic_(false), showCalculation_(false), isSubexpression_(false),
+        result_(0.0), tokens_(), outerStep_() {}
   explicit Expression(const std::string &expression,
-                      bool show_calculation = false)
-      : expression_(expression), trimmedExpression_(), isValidated_(false),
-        isParsed_(false), isTokenized_(false), isCalculated_(false),
-        isAtomic_(false), showCalculation_(show_calculation), result_(0.0),
-        outerStep_(), tokens_() {
-    parse_();
-  }
-  explicit Expression(TokenizedExpression &tokens,
-                      bool show_calculation = false)
-      : expression_(), trimmedExpression_(), isValidated_(true),
+                      bool isSubexpression = false,
+                      bool showCalculation = false)
+      : expression_(expression), trimmedExpression_(),
+        isValidated_(isSubexpression), isParsed_(false), isTokenized_(false),
+        isCalculated_(false), isAtomic_(false),
+        showCalculation_(showCalculation), isSubexpression_(isSubexpression),
+        result_(0.0), tokens_(), outerStep_() {}
+  explicit Expression(TokenizedExpression &tokens, bool isSubexpression = true,
+                      bool showCalculation = false)
+      : expression_(), trimmedExpression_(), isValidated_(isSubexpression),
         isParsed_(false), isTokenized_(true), isCalculated_(false),
-        isAtomic_(false), showCalculation_(show_calculation), result_(0.0),
-        outerStep_(), tokens_(tokens) {}
+        isAtomic_(false), showCalculation_(showCalculation),
+        isSubexpression_(isSubexpression), result_(0.0), tokens_(tokens),
+        outerStep_() {}
+  explicit Expression(double result, bool isSubexpression = true)
+      : expression_(), trimmedExpression_(), isValidated_(true),
+        isParsed_(true), isTokenized_(true), isCalculated_(true),
+        isAtomic_(true), showCalculation_(false),
+        isSubexpression_(isSubexpression), result_(result), tokens_(),
+        outerStep_() {}
 
   // Public methods
-  static double add(const double &a, const double &b) { return a + b; }
-  static double subtract(const double &a, const double &b) { return a - b; }
-  static double multiply(const double &a, const double &b) { return a * b; }
-  static double divide(const double &a, const double &b) { return a / b; }
+  static double add(const double a, const double b) { return a + b; }
+  static double subtract(const double a, const double b) { return a - b; }
+  static double multiply(const double a, const double b) { return a * b; }
+  static double divide(const double a, const double b) { return a / b; }
 
   const std::string expressionStr() { return expression_; }
   void set_expression(const std::string &expression);
   double result();
   double calculate() { return result(); }
   double calculate(const std::string &expression);
-  void print_calculation();
-  bool is_atomic();
+  void printCalculation();
+  bool isAtomic();
 
 private:
   // Private constants
   static const std::unordered_map<std::string_view, Operator> operators_;
   static const std::regex exprPattern_;
+  static const std::regex numPattern_;
   static const std::regex numToken_;
   static const std::regex funcToken_;
 
@@ -98,12 +106,13 @@ private:
   tokenizedExpression_(const std::string &expression);
   static Step lastCalculationStep_(TokenizedExpression &tokens);
   static Expression combinedTokens_(TokenizedExpression &tokens,
-                                    const int &startInd, const int &stopInd);
-  static const int closingBracketIndex_(const std::string &str);
+                                    const size_t &startInd,
+                                    const size_t &stopInd);
+  static size_t closingBracketIndex_(const std::string &str);
   static double calculate_(Step &step);
-  static double calculate_(const Operator &oper, const double &operand);
-  static double calculate_(const Operator &oper, const double &leftOperand,
-                           const double &rightOperand);
+  static double calculate_(const Operator &oper, const double operand);
+  static double calculate_(const Operator &oper, const double leftOperand,
+                           const double rightOperand);
   static void checkNaN_(double num) {
     if (std::isnan(num))
       std::cout << "Warning: num is NaN." << '\n';
@@ -119,6 +128,7 @@ private:
   bool isCalculated_;
   bool isAtomic_;
   bool showCalculation_;
+  bool isSubexpression_;
   double result_;
   TokenizedExpression tokens_;
   Step outerStep_;
