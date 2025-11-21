@@ -5,6 +5,7 @@
 #include <cmath>
 #include <functional>
 #include <iostream>
+#include <optional>
 #include <regex>
 #include <string>
 #include <string_view>
@@ -38,35 +39,33 @@ public:
   // Structs
   struct TokenizedExpression {
     std::vector<Expression> tokens;
-    Operator                 function;
-    std::vector<Operator>    binOps;
+    Operator function;
+    std::vector<Operator> binOps;
+  };
+  struct Step {
+    std::vector<Operator> operators;
+    std::vector<Expression> operands;
   };
 
   // Ensure default constructor exists even though we've defined others
   Expression()
-      : expression_(), trimmedExpression_(), is_parsed_(false),
-        is_calculated_(false), is_validated_(false), is_atomic_(false),
-        show_calculation_(false), is_subexpression_(false), result_(0.0),
-        operator_(), operands_(std::vector<Expression>()) {}
+      : expression_(), trimmedExpression_(), isValidated_(false), isParsed_(false),
+        isTokenized_(false), isCalculated_(false), isAtomic_(false),
+        showCalculation_(false), result_(0.0), outerStep_(), tokens_() {}
   explicit Expression(const std::string &expression,
-                      bool is_subexpression = false)
-      : expression_(expression), trimmedExpression_(), is_parsed_(false),
-        is_calculated_(false), is_validated_(false), is_atomic_(false),
-        show_calculation_(false), is_subexpression_(is_subexpression),
-        result_(0.0), operator_(), operands_(std::vector<Expression>()) {
+                      bool show_calculation = false)
+      : expression_(expression), trimmedExpression_(), isValidated_(false), isParsed_(false),
+        isTokenized_(false), isCalculated_(false), isAtomic_(false),
+        showCalculation_(show_calculation), result_(0.0), outerStep_(),
+        tokens_() {
     parse_();
   }
-
-  // Static functions
-  static double calculate(const std::string &numOperator,
-                          const double &operand) {
-    return calculate_(operators_.at(numOperator), operand);
-  }
-  static double calculate(const std::string &numOperator,
-                          const double &leftOperand,
-                          const double &rightOperand) {
-    return calculate_(operators_.at(numOperator), leftOperand, rightOperand);
-  }
+  explicit Expression(TokenizedExpression &tokens,
+                      bool show_calculation = false)
+      : expression_(), trimmedExpression_(), isValidated_(true), isParsed_(false),
+        isTokenized_(true), isCalculated_(false), isAtomic_(false),
+        showCalculation_(show_calculation), result_(0.0), outerStep_(),
+        tokens_(tokens) {}
 
   // Public methods
   static double add(const double &a, const double &b) { return a + b; }
@@ -94,20 +93,13 @@ private:
   static double parsedNumber_(const std::string &numStr);
   void validate_(const std::string &expression);
   void parse_();
-  static const TokenizedExpression tokenizedExpression_(const std::string &expression);
+  static TokenizedExpression
+  tokenizedExpression_(const std::string &expression);
+  static Step lastCalculationStep_(TokenizedExpression &tokens);
   static const int closingBracketIndex_(const std::string &str);
-  double calculate_(const Operator &numOperator,
-                    std::vector<Expression> &operands);
-  static double calculate_(const Operator &numOperator, Expression &operand) {
-    return calculate_(numOperator, operand.result());
-  }
-  static double calculate_(const Operator &numOperator, Expression &leftOperand,
-                    Expression &rightOperand) {
-    return calculate_(numOperator, leftOperand.result(), rightOperand.result());
-  }
-  static double calculate_(const Operator &numOperator, const double &operand);
-  static double calculate_(const Operator &numOperator,
-                           const double &leftOperand,
+  static double calculate_(Step &step);
+  static double calculate_(const Operator &oper, const double &operand);
+  static double calculate_(const Operator &oper, const double &leftOperand,
                            const double &rightOperand);
   static void checkNaN_(double num) {
     if (std::isnan(num))
@@ -118,13 +110,13 @@ private:
   // Private variables
   std::string expression_;
   std::string trimmedExpression_;
-  bool is_parsed_;
-  bool is_calculated_;
-  bool is_validated_;
-  bool is_atomic_;
-  bool show_calculation_;
-  bool is_subexpression_;
+  bool isValidated_;
+  bool isParsed_;
+  bool isTokenized_;
+  bool isCalculated_;
+  bool isAtomic_;
+  bool showCalculation_;
   double result_;
-  Operator operator_;
-  std::vector<Expression> operands_;
+  TokenizedExpression tokens_;
+  Step outerStep_;
 };

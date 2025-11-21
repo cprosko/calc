@@ -15,9 +15,9 @@
 using namespace std::string_literals;
 
 void Expression::set_expression(const std::string &expression) {
-  is_parsed_ = false;
-  is_calculated_ = false;
-  is_validated_ = false;
+  isParsed_ = false;
+  isCalculated_ = false;
+  isValidated_ = false;
   validate_(expression);
   expression_ = expression;
 }
@@ -28,37 +28,42 @@ double Expression::calculate(const std::string &expression) {
 }
 
 double Expression::result() {
-  if (is_calculated_) {
+  if (isCalculated_) {
     return result_;
   }
-  if (!is_parsed_) {
+  if (isTokenized_) {
+    outerStep_ = lastCalculationStep_(tokens_);
+  } else if (!isParsed_) {
     parse_();
   }
 #ifndef EXPRESSION_DEBUG
-  std::cout << "Operator: " << static_cast<int>(operator_) << '\n';
+  std::cout << "Step: ";
+  for (int i{0}; i < outerStep_.operands.size(); ++i) {
+  }
 #endif
-  if (is_atomic_) {
+  if (isAtomic_) {
     return result_; // Value has been calculated inside parse_()
   }
   result_ = std::numeric_limits<double>::quiet_NaN();
-  result_ = calculate_(operator_, operands_);
+  result_ = calculate_(outerStep_);
+  isCalculated_ = true;
   checkNaN_(result_);
   return result_;
 }
 
 void Expression::print_calculation() {
-  show_calculation_ = true;
-  is_calculated_ = false;
+  showCalculation_ = true;
+  isCalculated_ = false;
   parse_();
   std::cout << "Result: " << result_ << '\n';
-  show_calculation_ = false;
+  showCalculation_ = false;
 }
 
 bool Expression::is_atomic() {
-  if (!is_parsed_) {
+  if (!isParsed_) {
     parse_();
   }
-  return is_atomic_;
+  return isAtomic_;
 }
 
 const std::string Expression::escapeRegex(std::string_view str) {
@@ -129,62 +134,54 @@ void Expression::validate_(const std::string &expression) {
   return;
 }
 
+// Arrange expression into subexpressions
+// Arranged such that outermost expression consists of the last operation to
+// calculate on subexpressions according to BEDMAS, so full result can be found
+// recursively.
 void Expression::parse_() {
-  // TODO: Add printing statements when show_calculation_ == true
-  if (!is_validated_) {
+
+  // TODO: Add printing statements when showCalculation_ == true
+  if (!isValidated_) {
     validate_(expression_);
   }
   // TODO: remove debug code
 #ifdef EXPRESSION_DEBUG
   std::cout << "valid!\n";
 #endif
-  operands_.clear();
+  // Clear previous results
+  tokens_.tokens.clear();
+  tokens_.binOps.clear();
+  outerStep_.operands.clear();
+  outerStep_.operators.clear();
   // Check if expression is just a number
-  if (!is_atomic_ && std::regex_match(trimmedExpression_, numToken_)) {
+  if (!isAtomic_ && std::regex_match(trimmedExpression_, numToken_)) {
     // TODO: remove debug code
 #ifdef EXPRESSION_DEBUG
     std::cout << "atomic!\n";
 #endif
-    is_atomic_ = true;
+    isAtomic_ = true;
     result_ = parsedNumber_(trimmedExpression_);
-    is_calculated_ = true;
+    isCalculated_ = true;
     return;
   }
-  // Break expression down into subexpressions
-  // based on 'BEDMAS' arithmetic rules
+  // Break expression down into recursive subexpressions based on BEDMAS
+  // arithmetic rules
   // Outer parentheses were removed in trimmedExpression_ during validation
-  Expression::TokenizedExpression components{
-      tokenizedExpression_(trimmedExpression_)};
-  if (components.tokens.size() == 1) {
-    if (!components.binOps.empty())
-      throw std::runtime_error("Found dangling operators in expression.");
-    operator_ = components.function;
-    operands_.push_back(components.tokens[0]);
-    return;
-  }
-  if (components.tokens.size() == 2) {
-    if (components.binOps.size() != 1)
-      throw std::runtime_error("Mismatched number of operators in expression.");
-    operator_ = components.binOps[0];
-    operands_.push_back(components.tokens[0]);
-    operands_.push_back(components.tokens[1]);
-    return;
-  }
-  // Need to apply BEDMAS to effectively 'insert brackets' into the expression
-  // determining the order in which to calculate each
+  tokens_ = tokenizedExpression_(trimmedExpression_);
+  outerStep_ = lastCalculationStep_(tokens_);
 }
 
-const Expression::TokenizedExpression
+Expression::TokenizedExpression
 Expression::tokenizedExpression_(const std::string &expression) {
   std::vector<Expression> subexpressions;
-  Expression::Operator function;                     // on whole expression
-  std::vector<Expression::Operator> binaryOperators; // between subexpressions
+  Operator function;                     // on whole expression
+  std::vector<Operator> binaryOperators; // between subexpressions
   std::string remainingExpression;
   // Check for leading operators
   switch (expression.front()) {
   case '-':
     subexpressions.push_back(Expression("-1"));
-    binaryOperators.push_back(Expression::Operator::Times);
+    binaryOperators.push_back(Operator::Times);
     remainingExpression = expression.substr(1);
     break;
   case '+':
@@ -207,7 +204,7 @@ Expression::tokenizedExpression_(const std::string &expression) {
   bool prevTokenWasBinOp{true};
   std::smatch match;
   while (true) {
-    int closingIndex; // End index of token
+    int closingIndex;       // End index of token
     bool foundMatch{false}; // Used to avoid regex matching when unnecessary
     char frontChar{remainingExpression.front()};
     switch (frontChar) {
@@ -217,13 +214,12 @@ Expression::tokenizedExpression_(const std::string &expression) {
     case '*':
     case '/':
     case '^':
-      binaryOperators.push_back(
-          Expression::operators_.at(std::string(1, frontChar)));
+      binaryOperators.push_back(operators_.at(std::string(1, frontChar)));
       prevTokenWasBinOp = true;
       remainingExpression = remainingExpression.substr(1);
       continue;
     case '(':
-      closingIndex = Expression::closingBracketIndex_(remainingExpression);
+      closingIndex = closingBracketIndex_(remainingExpression);
       subexpressions.push_back(
           Expression(remainingExpression.substr(0, closingIndex)));
       remainingExpression = remainingExpression.substr(closingIndex + 1);
@@ -231,21 +227,23 @@ Expression::tokenizedExpression_(const std::string &expression) {
       foundMatch = true;
     }
     // Is remaining expression wrapped in brackets?
-    if (!foundMatch && std::regex_match(remainingExpression, match, numToken_)) {
+    if (!foundMatch &&
+        std::regex_match(remainingExpression, match, numToken_)) {
       subexpressions.push_back(Expression(match[1].str()));
       closingIndex = match[1].length();
       remainingExpression = match[2].str();
       prevTokenWasBinOp = false;
-    } else if (!foundMatch && std::regex_match(remainingExpression, match, funcToken_)) {
+    } else if (!foundMatch &&
+               std::regex_match(remainingExpression, match, funcToken_)) {
       if (!match[2].matched)
         throw std::runtime_error("Function in expression without argument.");
-      closingIndex = Expression::closingBracketIndex_(match[2].str());
+      closingIndex = closingBracketIndex_(match[2].str());
       std::string argument{match[2].str().substr(0, closingIndex)};
       // Account for size of function and opening bracket
       closingIndex += match[1].length() + 1;
       if (closingIndex == remainingExpression.size()) {
         // expression is just function call on inner expression
-        function = Expression::operators_.at(match[1].str());
+        function = operators_.at(match[1].str());
         subexpressions.push_back(Expression(argument));
       } else {
         subexpressions.push_back(
@@ -256,13 +254,21 @@ Expression::tokenizedExpression_(const std::string &expression) {
       throw std::runtime_error("Unexpected token found during tokenization.");
     }
     if (prevTokenWasBinOp)
-      binaryOperators.push_back(Expression::Operator::Times);
+      binaryOperators.push_back(Operator::Times);
     if (closingIndex == remainingExpression.size())
       break;
     foundMatch = false;
   }
-  Expression::TokenizedExpression result;
+  TokenizedExpression result = {.tokens = subexpressions,
+                                .function = function,
+                                .binOps = binaryOperators};
   return result;
+}
+
+Expression::Step Expression::lastCalculationStep_(TokenizedExpression &tokens) {
+  Step lastStep;
+  // TODO
+  return lastStep;
 }
 
 const int Expression::closingBracketIndex_(const std::string &str) {
@@ -356,21 +362,23 @@ double Expression::calculate_(const Operator &numOperator,
   return value;
 }
 
-double Expression::calculate_(const Operator &numOperator,
-                              std::vector<Expression> &operands) {
-  switch (operands.size()) {
-  case 1:
-    result_ = calculate_(numOperator, operands[0]);
-    break;
-  case 2:
-    result_ = calculate_(numOperator, operands[0], operands[1]);
-    break;
-  default:
-    throw std::runtime_error(
-        "Error: Expression has an invalid number of operands (" +
-        std::to_string(operands.size()) + ")");
+double Expression::calculate_(Step &step) {
+  // Apply operators to operands left-to-right
+  // Assumes unary operators only appear when there is one operand
+  if (step.operands.size() == 1) {
+    if (step.operators.size() != 1)
+      throw std::runtime_error("Too many operators relative to operands.");
+    return calculate_(step.operators[0], step.operands[0].result());
   }
-  return result_;
+  if (step.operators.size() != step.operands.size() - 1) {
+    throw std::runtime_error(
+        "For binary operations, there must be one less operator than operands");
+  }
+  double result{step.operands[0].result()};
+  for (int i{1}; i < step.operands.size(); ++i) {
+    result = calculate_(step.operators[i], result, step.operands[i].result());
+  }
+  return result;
 }
 
 const std::regex Expression::constructExprPattern_() {
