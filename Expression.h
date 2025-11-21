@@ -49,23 +49,24 @@ public:
 
   // Ensure default constructor exists even though we've defined others
   Expression()
-      : expression_(), trimmedExpression_(), isValidated_(false), isParsed_(false),
-        isTokenized_(false), isCalculated_(false), isAtomic_(false),
-        showCalculation_(false), result_(0.0), outerStep_(), tokens_() {}
+      : expression_(), trimmedExpression_(), isValidated_(false),
+        isParsed_(false), isTokenized_(false), isCalculated_(false),
+        isAtomic_(false), showCalculation_(false), result_(0.0), outerStep_(),
+        tokens_() {}
   explicit Expression(const std::string &expression,
                       bool show_calculation = false)
-      : expression_(expression), trimmedExpression_(), isValidated_(false), isParsed_(false),
-        isTokenized_(false), isCalculated_(false), isAtomic_(false),
-        showCalculation_(show_calculation), result_(0.0), outerStep_(),
-        tokens_() {
+      : expression_(expression), trimmedExpression_(), isValidated_(false),
+        isParsed_(false), isTokenized_(false), isCalculated_(false),
+        isAtomic_(false), showCalculation_(show_calculation), result_(0.0),
+        outerStep_(), tokens_() {
     parse_();
   }
   explicit Expression(TokenizedExpression &tokens,
                       bool show_calculation = false)
-      : expression_(), trimmedExpression_(), isValidated_(true), isParsed_(false),
-        isTokenized_(true), isCalculated_(false), isAtomic_(false),
-        showCalculation_(show_calculation), result_(0.0), outerStep_(),
-        tokens_(tokens) {}
+      : expression_(), trimmedExpression_(), isValidated_(true),
+        isParsed_(false), isTokenized_(true), isCalculated_(false),
+        isAtomic_(false), showCalculation_(show_calculation), result_(0.0),
+        outerStep_(), tokens_(tokens) {}
 
   // Public methods
   static double add(const double &a, const double &b) { return a + b; }
@@ -96,6 +97,8 @@ private:
   static TokenizedExpression
   tokenizedExpression_(const std::string &expression);
   static Step lastCalculationStep_(TokenizedExpression &tokens);
+  static Expression combinedTokens_(TokenizedExpression &tokens,
+                                    const int &startInd, const int &stopInd);
   static const int closingBracketIndex_(const std::string &str);
   static double calculate_(Step &step);
   static double calculate_(const Operator &oper, const double &operand);

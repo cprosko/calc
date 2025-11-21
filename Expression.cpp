@@ -7,6 +7,7 @@
 #include <cmath>
 #include <iostream>
 #include <limits>
+#include <ranges>
 #include <regex>
 #include <stdexcept>
 #include <string>
@@ -267,8 +268,59 @@ Expression::tokenizedExpression_(const std::string &expression) {
 
 Expression::Step Expression::lastCalculationStep_(TokenizedExpression &tokens) {
   Step lastStep;
-  // TODO
+  // Assumes that any functions are present, they wrap the whole expression
+  if (tokens.tokens.size() == 1) {
+    if (!tokens.binOps.empty())
+      throw std::runtime_error("Found binary operator acting on single token.");
+    lastStep.operators.push_back(tokens.function);
+    lastStep.operands.push_back(tokens.tokens[0]);
+  }
+  // From lowest to highest priority in BEDMAS:
+  // priority 3 for + -, 2 for * x /, 1 for ^
+  int priority{3};
+  bool foundSteps{false};
+  int operInd{0};
+  int lastUngroupedTokenInd{0};
+  while (!foundSteps || operInd != 0) {
+    Operator op{tokens.binOps[operInd]};
+    if ((priority == 3 && (op == Operator::Plus || op == Operator::Minus)) ||
+        (priority == 2 && (op == Operator::Times || op == Operator::Divide)) ||
+        priority == 1) {
+      foundSteps = true;
+      lastStep.operators.push_back(op);
+      lastStep.operands.push_back(
+          combinedTokens_(tokens, lastUngroupedTokenInd, operInd + 1));
+      lastUngroupedTokenInd = operInd + 1;
+    }
+    if (operInd == tokens.binOps.size()) {
+      if (foundSteps) {
+        break;
+      }
+      if (priority == 1 && !foundSteps)
+        throw std::runtime_error(
+            "Failed to find lowest-priority calculation step.");
+      operInd = 0;
+      priority--;
+    } else {
+      operInd++;
+    }
+  }
   return lastStep;
+}
+
+Expression Expression::combinedTokens_(TokenizedExpression &tokens,
+                                       const int &startInd,
+                                       const int &stopInd) {
+  auto tokenSlice = tokens.tokens | std::views::drop(startInd) |
+                    std::views::take(stopInd - startInd + 1);
+  auto operSlice = tokens.binOps | std::views::drop(startInd) |
+                   std::views::take(stopInd - startInd);
+  TokenizedExpression subTokens{
+      .tokens = std::vector<Expression>(tokenSlice.begin(), tokenSlice.end()),
+      .function = Operator::None,
+      .binOps = std::vector<Operator>(operSlice.begin(), operSlice.end()),
+  };
+  return Expression(subTokens);
 }
 
 const int Expression::closingBracketIndex_(const std::string &str) {
