@@ -198,9 +198,23 @@ void Expression::parse_() {
   // arithmetic rules
   // Outer parentheses were removed in trimmedExpression_ during validation
   tokens_ = tokenizedExpression_(trimmedExpression_);
-  std::cout << "Calling lastCalculationStep_!" << std::endl;
-  std::cout << "OPERATOR AT THIS POINT: "
-            << operatorStrings_.at(tokens_.binOps[0]) << std::endl;
+  std::cout << "Calling lastCalculationStep_ for trimmedExpression_ " << trimmedExpression_ << std::endl;
+  for (auto tok : tokens_.tokens) {
+    if (tok.isCalculated_) {
+      std::cout << "--> token: " << tok.result_ << " (calculated)" << std::endl;
+    } else if (tok.isTokenized_) {
+      std::cout << "--> token: " << std::endl;
+      for (auto innerTok : tok.tokens_.tokens) {
+        std::cout << "----> inner token: " << innerTok.result_ << std::endl;
+      }
+    } else {
+      std::cout << "--> token: " << tok.expression_ << std::endl;
+    }
+  }
+  if (tokens_.binOps.size() > 0) {
+    std::cout << "OPERATOR AT THIS POINT: "
+              << operatorStrings_.at(tokens_.binOps[0]) << std::endl;
+  }
   for (auto token : tokens_.tokens) {
     std::cout << "TOKEN RESULT: " << token.result_ << std::endl;
   }
@@ -234,16 +248,12 @@ Expression::tokenizedExpression_(const std::string &expression) {
   default:
     remainingExpression = expression;
   }
-  if (expression.front() == '-') {
-  } else {
-    remainingExpression = expression;
-  }
 
   // Tokenize the string from left to right into subexpressions and operators
 #ifdef EXPRESSION_DEBUG
   std::cout << "about to tokenize\n";
 #endif
-  bool prevTokenWasBinOp{true};
+  bool prevTokenWasBinOp{false};
   std::smatch match;
   while (remainingExpression.size() > 0) {
 #ifdef EXPRESSION_DEBUG
@@ -327,12 +337,13 @@ Expression::tokenizedExpression_(const std::string &expression) {
                   << std::endl;
 #endif
         subexpressions.push_back(
-            Expression(remainingExpression.substr(0, closingIndex)));
-        remainingExpression = remainingExpression.substr(closingIndex);
+            Expression(remainingExpression.substr(0, closingIndex + 1)));
+        remainingExpression = remainingExpression.substr(closingIndex + 1);
         prevTokenWasBinOp = false;
       }
     } else if (!foundMatch) {
-      std::cout << "Expression leading to error: " << remainingExpression << std::endl;
+      std::cout << "Expression leading to error: " << remainingExpression
+                << std::endl;
       throw std::runtime_error("Unexpected token found during tokenization.");
     }
     if (prevTokenWasBinOp)
@@ -342,6 +353,20 @@ Expression::tokenizedExpression_(const std::string &expression) {
 #ifdef EXPRESSION_DEBUG
   std::cout << "Done loop!" << std::endl;
 #endif
+  std::cout << "AT END OF TOKENIZATION: " << std::endl;
+  for (auto tok : subexpressions) {
+    if (tok.isCalculated_) {
+      std::cout << "--> token: " << tok.result_ << std::endl;
+    } else if (tok.isTokenized_) {
+      std::cout << "--> token: is tokenized" << std::endl;
+    } else {
+      std::cout << "--> token: " << tok.expression_ << std::endl;
+    }
+  }
+  for (auto op : binaryOperators) {
+    std::cout << "--> oper: " << operatorStrings_.at(op) << std::endl;
+  }
+  std::cout << "--> func: " << operatorStrings_.at(function) << std::endl;
   TokenizedExpression result = {.tokens = subexpressions,
                                 .binOps = binaryOperators,
                                 .function = function};
@@ -655,7 +680,8 @@ const std::unordered_map<std::string_view, Expression::Operator>
                            {"tan", Expression::Operator::Tan},
                            {"sinh", Expression::Operator::Sinh},
                            {"cosh", Expression::Operator::Cosh},
-                           {"tanh", Expression::Operator::Tanh}};
+                           {"tanh", Expression::Operator::Tanh},
+                           {"NULL", Expression::Operator::None}};
 const std::unordered_map<Expression::Operator, std::string_view>
     Expression::operatorStrings_{constructOperatorStrings_()};
 const std::regex Expression::exprPattern_{constructExprPattern_()};
@@ -675,7 +701,8 @@ int main() {
       // Check functions
       Expression("sin(3.14159/2)"),
       // Check more complicated expressions
-      Expression("ln(2)xsin(3.14159/2)^3.0")};
+      Expression("ln(2)xsin(3.14159/2)^3.0"),
+      Expression("-1.0*ln((4.5+3)^4)-12")};
   for (Expression expr : expressions) {
     expr.result();
     std::cout << "RESULT: " << expr.result() << "\n\n";
