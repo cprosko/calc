@@ -7,6 +7,7 @@
 #include <iostream>
 #include <optional>
 #include <regex>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -38,13 +39,13 @@ public:
   };
   // Structs
   struct TokenizedExpression {
-    std::vector<Expression> tokens = std::vector<Expression>();
-    std::vector<Operator> binOps = std::vector<Operator>();
-    Operator function = Operator::None;
+    std::vector<Expression> tokens{};
+    std::vector<Operator> binOps{};
+    Operator function{Operator::None};
   };
   struct Step {
-    std::vector<Operator> operators = std::vector<Operator>();
-    std::vector<Expression> operands = std::vector<Expression>();
+    std::vector<Operator> operators{};
+    std::vector<Expression> operands{};
   };
 
   // Ensure default constructor exists even though we've defined others
@@ -60,20 +61,37 @@ public:
         isValidated_(isSubexpression), isParsed_(false), isTokenized_(false),
         isCalculated_(false), isAtomic_(false),
         showCalculation_(showCalculation), isSubexpression_(isSubexpression),
-        result_(0.0), tokens_(), outerStep_() {}
+        result_(0.0), tokens_(), outerStep_() {
+    std::cout << "Expression initialized by string: " << expression << std::endl;
+  }
   explicit Expression(TokenizedExpression &tokens, bool isSubexpression = true,
                       bool showCalculation = false)
       : expression_(), trimmedExpression_(), isValidated_(isSubexpression),
         isParsed_(false), isTokenized_(true), isCalculated_(false),
         isAtomic_(false), showCalculation_(showCalculation),
-        isSubexpression_(isSubexpression), result_(0.0), tokens_(tokens),
-        outerStep_() {}
+        isSubexpression_(isSubexpression), result_(-1000.0), tokens_(tokens),
+        outerStep_() {
+    if (tokens.tokens.size() == 1) {
+      if (tokens.tokens[0].isCalculated_) {
+        isCalculated_ = true;
+        result_ = tokens.tokens[0].result_;
+      } else {
+        throw std::runtime_error(
+            "Cannot initialize expressions using TokenizedExpression with only "
+            "one uncalculated token.");
+      }
+    }
+    std::cout << "Expression initialized by tokens of size: " << tokens.tokens.size()
+              << std::endl;
+  }
   explicit Expression(double result, bool isSubexpression = true)
       : expression_(), trimmedExpression_(), isValidated_(true),
         isParsed_(true), isTokenized_(true), isCalculated_(true),
         isAtomic_(true), showCalculation_(false),
         isSubexpression_(isSubexpression), result_(result), tokens_(),
-        outerStep_() {}
+        outerStep_() {
+    std::cout << "Expression initialized by result: " << result << std::endl;
+  }
 
   // Public methods
   static double add(const double a, const double b) { return a + b; }
@@ -92,6 +110,7 @@ public:
 private:
   // Private constants
   static const std::unordered_map<std::string_view, Operator> operators_;
+  static const std::unordered_map<Operator, std::string_view> operatorStrings_;
   static const std::regex exprPattern_;
   static const std::regex numPattern_;
   static const std::regex numToken_;
@@ -117,6 +136,8 @@ private:
     if (std::isnan(num))
       std::cout << "Warning: num is NaN." << '\n';
   }
+  static const std::unordered_map<Operator, std::string_view>
+  constructOperatorStrings_();
   static const std::regex constructExprPattern_();
 
   // Private variables
