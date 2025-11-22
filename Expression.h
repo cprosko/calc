@@ -54,22 +54,24 @@ public:
       : expression_(), trimmedExpression_(), isValidated_(false),
         isParsed_(false), isTokenized_(false), isCalculated_(false),
         isAtomic_(false), showCalculation_(false), isSubexpression_(false),
-        result_(0.0), tokens_(), outerStep_() {}
-  explicit Expression(const std::string &expression,
-                      bool isSubexpression = false,
+        result_(0.0), precision_(3), tokens_(), outerStep_() {}
+  explicit Expression(const std::string &expr, bool isSubexpression = false,
                       bool showCalculation = false)
-      : expression_(expression), trimmedExpression_(),
-        isValidated_(isSubexpression), isParsed_(false), isTokenized_(false),
-        isCalculated_(false), isAtomic_(false),
-        showCalculation_(showCalculation), isSubexpression_(isSubexpression),
-        result_(0.0), tokens_(), outerStep_() {}
+      : expression_(expr), trimmedExpression_(), isValidated_(isSubexpression),
+        isParsed_(false), isTokenized_(false), isCalculated_(false),
+        isAtomic_(false), showCalculation_(showCalculation),
+        isSubexpression_(isSubexpression), result_(0.0), precision_(3),
+        tokens_(), outerStep_() {
+    if (showCalculation)
+      std::cout << "Expression instantiated: " << expression() << std::endl;
+  }
   explicit Expression(TokenizedExpression &tokens, bool isSubexpression = true,
                       bool showCalculation = false)
       : expression_(), trimmedExpression_(), isValidated_(isSubexpression),
         isParsed_(false), isTokenized_(true), isCalculated_(false),
         isAtomic_(false), showCalculation_(showCalculation),
-        isSubexpression_(isSubexpression), result_(0.0), tokens_(tokens),
-        outerStep_() {
+        isSubexpression_(isSubexpression), result_(0.0), precision_(3),
+        tokens_(tokens), outerStep_() {
     if (tokens.tokens.size() == 1) {
       if (tokens.tokens[0].isCalculated_) {
         isCalculated_ = true;
@@ -80,13 +82,15 @@ public:
             "one uncalculated token.");
       }
     }
+    if (showCalculation)
+      std::cout << "Expression instantiated: " << expression() << std::endl;
   }
   explicit Expression(double result, bool isSubexpression = true)
       : expression_(), trimmedExpression_(), isValidated_(true),
         isParsed_(true), isTokenized_(true), isCalculated_(true),
         isAtomic_(true), showCalculation_(false),
-        isSubexpression_(isSubexpression), result_(result), tokens_(),
-        outerStep_() {}
+        isSubexpression_(isSubexpression), result_(result), precision_(3),
+        tokens_(), outerStep_() {}
 
   // Public methods
   static double add(const double a, const double b) { return a + b; }
@@ -94,7 +98,7 @@ public:
   static double multiply(const double a, const double b) { return a * b; }
   static double divide(const double a, const double b) { return a / b; }
 
-  const std::string expressionStr() { return expression_; }
+  std::string expression();
   void set_expression(const std::string &expression);
   double result();
   double calculate() { return result(); }
@@ -112,7 +116,6 @@ private:
   static const std::regex funcToken_;
 
   // Private methods
-  static const std::string escapeRegex(std::string_view str);
   static double parsedNumber_(const std::string &numStr);
   void validate_(const std::string &expression);
   void parse_();
@@ -134,6 +137,7 @@ private:
   }
   static const std::unordered_map<Operator, std::string_view>
   constructOperatorStrings_();
+  static const std::string escapeRegex_(std::string_view str);
   static const std::regex constructExprPattern_();
 
   // Private variables
@@ -147,6 +151,7 @@ private:
   bool showCalculation_;
   bool isSubexpression_;
   double result_;
+  int precision_;
   TokenizedExpression tokens_;
   Step outerStep_;
 };

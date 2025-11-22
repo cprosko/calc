@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <iomanip>
 #include <iostream>
 #include <limits>
 #include <ranges>
@@ -14,6 +15,44 @@
 
 // Namespaces
 using namespace std::string_literals;
+
+// ----------------------------------------------------------------------------
+// Public Methods
+// ----------------------------------------------------------------------------
+std::string Expression::expression() {
+  if (expression_.size() > 0) {
+    return expression_;
+  }
+  if (tokens_.tokens.size() == 0) {
+    if (isCalculated_) {
+      std::ostringstream oss;
+      oss << std::setprecision(precision_) << result();
+      expression_ = oss.str();
+      trimmedExpression_ = expression_;
+      return expression_;
+    }
+    return "<NO EXPRESSION>";
+  }
+  if (tokens_.tokens.size() == 1) {
+    expression_ = tokens_.tokens[0].expression();
+    if (tokens_.function != Operator::None) {
+      expression_ =
+          static_cast<std::string>(operatorStrings_.at(tokens_.function)) +
+          "("s + expression_ + ")"s;
+    }
+    trimmedExpression_ = expression_;
+    return expression_;
+  }
+  expression_ = "";
+  for (size_t i{0}; i < tokens_.binOps.size(); ++i) {
+    expression_ +=
+        tokens_.tokens[i].expression() +
+        static_cast<std::string>(operatorStrings_.at(tokens_.binOps[i]));
+  }
+  expression_ += tokens_.tokens.back().expression();
+  trimmedExpression_ = expression_;
+  return expression_;
+}
 
 void Expression::set_expression(const std::string &expression) {
   isParsed_ = false;
@@ -62,19 +101,9 @@ bool Expression::isAtomic() {
   return isAtomic_;
 }
 
-const std::string Expression::escapeRegex(std::string_view str) {
-  const std::string_view regexSpecials = R"(.^$*+?()[]{}|\)";
-  std::string escaped;
-  escaped.reserve(str.size() * 2);
-  for (char c : str) {
-    if (regexSpecials.find(c) != std::string::npos) {
-      escaped += '\\';
-    }
-    escaped += c;
-  }
-  return escaped;
-}
-
+// ----------------------------------------------------------------------------
+// Private Methods
+// ----------------------------------------------------------------------------
 double Expression::parsedNumber_(const std::string &numStr) {
   std::string cleaned;
   // Remove any parentheses and whitespace from the string
@@ -460,11 +489,24 @@ const std::regex Expression::constructExprPattern_() {
   for (const auto &[key, value] : operators_) {
     if (!first)
       pattern += '|';
-    pattern += escapeRegex(key);
+    pattern += escapeRegex_(key);
     first = false;
   }
   pattern = R"(^()"s + pattern + R"(|\(|\)|\d+\.?\d*)+$)";
   return std::regex(pattern);
+}
+
+const std::string Expression::escapeRegex_(std::string_view str) {
+  const std::string_view regexSpecials = R"(.^$*+?()[]{}|\)";
+  std::string escaped;
+  escaped.reserve(str.size() * 2);
+  for (char c : str) {
+    if (regexSpecials.find(c) != std::string::npos) {
+      escaped += '\\';
+    }
+    escaped += c;
+  }
+  return escaped;
 }
 
 const std::unordered_map<std::string_view, Expression::Operator>
@@ -511,7 +553,7 @@ int main() {
       Expression("(log((4+5)^2+4^2)-3^2)")};
   for (Expression expr : expressions) {
     expr.result();
-    std::cout << "RESULT: " << expr.result() << "\n\n";
+    std::cout << "RESULT: " << expr.result() << " for expression " << expr.expression() << "\n\n";
   }
 }
 #endif
