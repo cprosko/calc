@@ -167,6 +167,7 @@ Expression::tokenizedExpression_(const std::string &expression) {
   case '/':
   case '*':
   case '^':
+  case '%':
     throw std::runtime_error("Leading binary operator found in expression.");
   default:
     remainingExpression = expression;
@@ -186,6 +187,7 @@ Expression::tokenizedExpression_(const std::string &expression) {
     case '*':
     case '/':
     case '^':
+    case '%':
       binaryOperators.push_back(operators_.at(std::string(1, frontChar)));
       prevTokenWasBinOp = true;
       remainingExpression = remainingExpression.substr(1);
@@ -270,7 +272,8 @@ Expression::Step Expression::lastCalculationStep_(TokenizedExpression &tokens) {
   while (priority > 0 && (numSteps == 0 || operInd != 0)) {
     Operator op{tokens.binOps[operInd]};
     if ((priority == 3 && (op == Operator::Plus || op == Operator::Minus)) ||
-        (priority == 2 && (op == Operator::Times || op == Operator::Divide)) ||
+        (priority == 2 && (op == Operator::Times || op == Operator::Divide ||
+                           op == Operator::Mod)) ||
         priority == 1) {
       foundStepThisIter = true;
       numSteps++;
@@ -405,6 +408,9 @@ double Expression::calculate_(const Operator &numOperator,
   case Operator::Divide:
     value = leftOperand / rightOperand;
     break;
+  case Operator::Mod:
+    value = std::fmod(leftOperand, rightOperand);
+    break;
   case Operator::Pow:
     value = std::pow(leftOperand, rightOperand);
     break;
@@ -468,6 +474,7 @@ const std::unordered_map<std::string_view, Expression::Operator>
                            {"x", Expression::Operator::Times},
                            {"/", Expression::Operator::Divide},
                            {"^", Expression::Operator::Pow},
+                           {"%", Expression::Operator::Mod},
                            {"e^", Expression::Operator::Exp},
                            {"exp", Expression::Operator::Exp},
                            {"sqrt", Expression::Operator::Sqrt},

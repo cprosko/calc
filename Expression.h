@@ -26,6 +26,7 @@ public:
     Times,
     Divide,
     Pow,
+    Mod,
     Exp,
     Sqrt,
     Ln,
@@ -67,7 +68,7 @@ public:
       : expression_(), trimmedExpression_(), isValidated_(isSubexpression),
         isParsed_(false), isTokenized_(true), isCalculated_(false),
         isAtomic_(false), showCalculation_(showCalculation),
-        isSubexpression_(isSubexpression), result_(-1000.0), tokens_(tokens),
+        isSubexpression_(isSubexpression), result_(0.0), tokens_(tokens),
         outerStep_() {
     if (tokens.tokens.size() == 1) {
       if (tokens.tokens[0].isCalculated_) {
