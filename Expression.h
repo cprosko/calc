@@ -61,10 +61,7 @@ public:
         isValidated_(isSubexpression), isParsed_(false), isTokenized_(false),
         isCalculated_(false), isAtomic_(false),
         showCalculation_(showCalculation), isSubexpression_(isSubexpression),
-        result_(0.0), tokens_(), outerStep_() {
-    std::cout << "Expression initialized by string: " << expression
-              << std::endl;
-  }
+        result_(0.0), tokens_(), outerStep_() {}
   explicit Expression(TokenizedExpression &tokens, bool isSubexpression = true,
                       bool showCalculation = false)
       : expression_(), trimmedExpression_(), isValidated_(isSubexpression),
@@ -82,17 +79,13 @@ public:
             "one uncalculated token.");
       }
     }
-    std::cout << "Expression initialized by tokens of size: "
-              << tokens.tokens.size() << std::endl;
   }
   explicit Expression(double result, bool isSubexpression = true)
       : expression_(), trimmedExpression_(), isValidated_(true),
         isParsed_(true), isTokenized_(true), isCalculated_(true),
         isAtomic_(true), showCalculation_(false),
         isSubexpression_(isSubexpression), result_(result), tokens_(),
-        outerStep_() {
-    std::cout << "Expression initialized by result: " << result << std::endl;
-  }
+        outerStep_() {}
 
   // Public methods
   static double add(const double a, const double b) { return a + b; }
