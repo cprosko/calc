@@ -62,7 +62,8 @@ public:
         isCalculated_(false), isAtomic_(false),
         showCalculation_(showCalculation), isSubexpression_(isSubexpression),
         result_(0.0), tokens_(), outerStep_() {
-    std::cout << "Expression initialized by string: " << expression << std::endl;
+    std::cout << "Expression initialized by string: " << expression
+              << std::endl;
   }
   explicit Expression(TokenizedExpression &tokens, bool isSubexpression = true,
                       bool showCalculation = false)
@@ -81,8 +82,8 @@ public:
             "one uncalculated token.");
       }
     }
-    std::cout << "Expression initialized by tokens of size: " << tokens.tokens.size()
-              << std::endl;
+    std::cout << "Expression initialized by tokens of size: "
+              << tokens.tokens.size() << std::endl;
   }
   explicit Expression(double result, bool isSubexpression = true)
       : expression_(), trimmedExpression_(), isValidated_(true),
@@ -127,7 +128,8 @@ private:
   static Expression combinedTokens_(TokenizedExpression &tokens,
                                     const size_t &startInd,
                                     const size_t &stopInd);
-  static size_t closingBracketIndex_(const std::string &str);
+  static size_t closingBracketIndex_(const std::string &str,
+                                     const bool includeFrontBracket = false);
   static double calculate_(Step &step);
   static double calculate_(const Operator &oper, const double operand);
   static double calculate_(const Operator &oper, const double leftOperand,

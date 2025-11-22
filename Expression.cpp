@@ -139,8 +139,9 @@ void Expression::validate_(const std::string &expression) {
             << '\n';
 #endif
   // Remove unnecessary outer parentheses
-  if (trimmedExpression.front() == '(' &&
-      closingBracketIndex_(trimmedExpression) + 1 == trimmedExpression.size()) {
+  while (trimmedExpression.front() == '(' &&
+         closingBracketIndex_(trimmedExpression) + 1 ==
+             trimmedExpression.size()) {
     trimmedExpression.erase(trimmedExpression.begin());
     trimmedExpression.pop_back();
   }
@@ -198,7 +199,8 @@ void Expression::parse_() {
   // arithmetic rules
   // Outer parentheses were removed in trimmedExpression_ during validation
   tokens_ = tokenizedExpression_(trimmedExpression_);
-  std::cout << "Calling lastCalculationStep_ for trimmedExpression_ " << trimmedExpression_ << std::endl;
+  std::cout << "Calling lastCalculationStep_ for trimmedExpression_ "
+            << trimmedExpression_ << std::endl;
   for (auto tok : tokens_.tokens) {
     if (tok.isCalculated_) {
       std::cout << "--> token: " << tok.result_ << " (calculated)" << std::endl;
@@ -316,7 +318,7 @@ Expression::tokenizedExpression_(const std::string &expression) {
                std::regex_match(remainingExpression, match, funcToken_)) {
       if (!match[2].matched)
         throw std::runtime_error("Function in expression without argument.");
-      closingIndex = closingBracketIndex_(match[2].str());
+      closingIndex = closingBracketIndex_(match[2].str(), true);
       std::string argument{match[2].str().substr(0, closingIndex)};
       // Account for size of function and opening bracket
 
@@ -332,7 +334,7 @@ Expression::tokenizedExpression_(const std::string &expression) {
       } else {
 #ifdef EXPRESSION_DEBUG
         std::cout << "partial func token:"
-                  << remainingExpression.substr(0, closingIndex)
+                  << remainingExpression.substr(0, closingIndex + 1)
                   << ", remainingExpression: " << remainingExpression
                   << std::endl;
 #endif
@@ -503,10 +505,11 @@ Expression Expression::combinedTokens_(TokenizedExpression &tokens,
   return Expression(subTokens);
 }
 
-size_t Expression::closingBracketIndex_(const std::string &str) {
+size_t Expression::closingBracketIndex_(const std::string &str,
+                                        const bool includeFrontBracket) {
   // Find char index of ')' matching some '(' at front or left of string
   // Returns -1 if no match is found.
-  int unclosedBrackets{str.front() == '(' ? 0 : 1};
+  int unclosedBrackets{(str.front() == '(' && !includeFrontBracket) ? 0 : 1};
   size_t charInd;
   for (charInd = 0; charInd < str.size(); ++charInd) {
     char c{str[charInd]};
@@ -702,7 +705,8 @@ int main() {
       Expression("sin(3.14159/2)"),
       // Check more complicated expressions
       Expression("ln(2)xsin(3.14159/2)^3.0"),
-      Expression("-1.0*ln((4.5+3)^4)-12")};
+      Expression("-1.0*ln((4.5+3)^4)-12"), Expression("(((4+2)))"),
+      Expression("(log((4+5)^2+4^2)-3^2)")};
   for (Expression expr : expressions) {
     expr.result();
     std::cout << "RESULT: " << expr.result() << "\n\n";
