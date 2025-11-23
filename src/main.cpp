@@ -15,6 +15,6 @@ int main(int argc, char *argv[]) {
 
   // Test class initialization
   Expression myExpression(expression);
-  std::cout << "Input expression: " << myExpression.expressionStr() << '\n';
+  std::cout << "Input expression: " << myExpression.expression() << '\n';
   return 0;
 }

@@ -1,6 +1,6 @@
 # Executables
-calc
-calc_debug
+build/
 
 # Misc. Files
 **.o
+**.bak
