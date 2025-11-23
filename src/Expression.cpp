@@ -553,7 +553,8 @@ int main() {
       Expression("(log((4+5)^2+4^2)-3^2)")};
   for (Expression expr : expressions) {
     expr.result();
-    std::cout << "RESULT: " << expr.result() << " for expression " << expr.expression() << "\n\n";
+    std::cout << "RESULT: " << expr.result() << " for expression "
+              << expr.expression() << "\n\n";
   }
 }
 #endif
