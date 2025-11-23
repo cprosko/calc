@@ -36,11 +36,11 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ExpressionLogic)
 target_compile_options(${PROJECT_NAME} PRIVATE ${WARNING_FLAGS})
 
 # Tests executable
-add_executable(tests src/tests.cpp)
-set_target_properties(tests PROPERTIES EXCLUDE_FROM_ALL TRUE)
-target_link_libraries(tests PRIVATE ExpressionLogic)
-target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
-target_compile_options(tests PRIVATE ${WARNING_FLAGS})
+add_executable(test test/test.cpp)
+set_target_properties(test PROPERTIES EXCLUDE_FROM_ALL TRUE)
+target_link_libraries(test PRIVATE ExpressionLogic)
+target_link_libraries(test PRIVATE Catch2::Catch2WithMain)
+target_compile_options(test PRIVATE ${WARNING_FLAGS})
 
 # Debug Executable
 add_executable(debug src/debug_main.cpp)
