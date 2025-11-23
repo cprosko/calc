@@ -1,6 +1,9 @@
 # Executables
 build/
 
+# Environment specific files
+CMakeUserPresets.json
+
 # Misc. Files
 **.o
 **.bak
