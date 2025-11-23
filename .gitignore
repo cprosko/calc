@@ -3,6 +3,7 @@ build/
 
 # Environment specific files
 CMakeUserPresets.json
+.cache/
 
 # Misc. Files
 **.o
