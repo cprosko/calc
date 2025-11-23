@@ -21,25 +21,30 @@ set(WARNING_FLAGS
   -pedantic-errors
 )
 
+# Libraries
+add_library(ExpressionLogic STATIC src/Expression.cpp)
+target_include_directories(ExpressionLogic PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
 # Main Executable
 add_executable(${PROJECT_NAME} src/main.cpp src/Expression.cpp)
 target_include_directories(${PROJECT_NAME} PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
+target_link_libraries(${PROJECT_NAME} PRIVATE ExpressionLogic)
 target_compile_options(${PROJECT_NAME} PRIVATE ${WARNING_FLAGS})
 
 # Tests executable
 add_executable(tests src/tests.cpp)
 set_target_properties(tests PROPERTIES EXCLUDE_FROM_ALL TRUE)
+target_link_libraries(tests PRIVATE ExpressionLogic)
 target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
 target_compile_options(tests PRIVATE ${WARNING_FLAGS})
 
 # Debug Executable
-add_executable(debug src/Expression.cpp)
-target_include_directories(debug PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
+add_executable(debug src/debug_main.cpp)
 set_target_properties(debug PROPERTIES EXCLUDE_FROM_ALL TRUE)
-target_compile_definitions(debug PRIVATE EXPRESSION_DEBUG)
+target_link_libraries(debug PRIVATE ExpressionLogic)
 target_compile_options(debug PRIVATE ${WARNING_FLAGS})
 
