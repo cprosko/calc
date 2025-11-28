@@ -3,6 +3,9 @@
 #include <iostream>
 #include <string>
 
+/******************************************************************************
+ * Class for translating input arguments into a single string and enact options
+ *****************************************************************************/
 class ArgParser {
  public:
   ArgParser(int argc, char* argv[], std::string_view helpStr)

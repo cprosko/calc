@@ -38,7 +38,6 @@ int main(int argc, char* argv[]) {
   auto parsedArgs{ArgParser(argc, argv, helpStr)};
   if (parsedArgs.shouldExit()) return 0;
   Expression expression(parsedArgs.argString());
-  std::cout << "Input expression: " << expression.expression() << '\n';
   std::cout << std::setprecision(parsedArgs.precision()) << expression.result()
             << std::endl;
   return 0;
