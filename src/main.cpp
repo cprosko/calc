@@ -35,7 +35,8 @@ Arguments:\n\
 // Arguments to main are required for this to work as a console command
 // taking a variable number of arguments.
 int main(int argc, char* argv[]) {
-  auto parsedArgs{ArgParser(argc, argv, helpStr)};
+  auto parsedArgs{ArgParser(helpStr)};
+  parsedArgs.parse(argc, argv);
   if (parsedArgs.shouldExit()) return 0;
   Expression expression(parsedArgs.argString());
   std::cout << std::setprecision(parsedArgs.precision()) << expression.result()

@@ -4,7 +4,8 @@
 #include <stdexcept>
 #include <string>
 
-void ArgParser::parse(int argc, char* argv[]) {
+/// Parse options in argv and concatenate remaining args into argStr_
+void ArgParser::parse(int argc, const char* const argv[]) {
   if (argc == 1) {
     std::cout << "No input provided.\n";
     displayHelp();

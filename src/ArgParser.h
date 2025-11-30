@@ -8,23 +8,29 @@
  *****************************************************************************/
 class ArgParser {
  public:
-  ArgParser(int argc, char* argv[], std::string_view helpStr)
-      : argStr_(), helpStr_(helpStr) {
-    parse(argc, argv);
-  }
-  void parse(int argc, char* argv[]);
+  // Constructors
+  ArgParser(std::string_view helpStr) : argStr_(), helpStr_(helpStr) {}
+  // Public methods
+
+  /// Implement option flags and concatenate remaining args into a string
+  void parse(int argc, const char* const argv[]);
+  /// Print ArgParser's help string
   void displayHelp() { std::cout << helpStr_ << std::endl; }
-  std::string argString() { return argStr_; }
-  int precision() { return precision_; };
-  bool shouldExit() { return shouldExit_; };
+  /// Concatenated string of non-option arguments
+  const std::string& argString() const { return argStr_; }
+  /// Number of digits to display output numbers with
+  int precision() const { return precision_; };
+  /// Whether a critical problem was found during parsing
+  bool shouldExit() const { return shouldExit_; };
 
  private:
+  // Constants
+
+  /// Precision to use when none is supplied via an option
   static constexpr int default_precision_{6};
 
-  std::string parsedArg_(char* arg);
-
+  // Private variables
   bool shouldExit_{false};
-  bool isParsed_{false};
   std::string argStr_;
   int precision_{default_precision_};
   std::string helpStr_;
