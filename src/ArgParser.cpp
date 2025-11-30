@@ -22,6 +22,13 @@ void ArgParser::parse(int argc, const char* const argv[]) {
       return;
     }
     if (arg == "-p" || arg == "--precision") {
+      if (i + 1 >= argc) {
+        std::cerr
+            << "Error: -p|--precision requires a trailing integer argument"
+            << std::endl;
+        shouldExit_ = true;
+        return;
+      }
       try {
         precision_ = std::stoi(argv[i + 1]);
       } catch (const std::invalid_argument& e) {
@@ -29,13 +36,18 @@ void ArgParser::parse(int argc, const char* const argv[]) {
             << "Error: -p|--precision requires a trailing integer argument"
             << std::endl;
         shouldExit_ = true;
-        std::cout << "will this print?" << std::endl;
         return;
       }
       i++;
       continue;
     }
     argStr_ += arg;
+  }
+
+  if (argStr_.empty()) {
+    std::cout << "No nonoptional arguments provided.\n";
+    displayHelp();
+    shouldExit_ = true;
   }
   return;
 }
