@@ -84,31 +84,44 @@ void Expression::validate() {
   // Check operators are all valid
   if (!std::regex_match(trimmedExpression, exprPattern_)) {
     throw std::runtime_error(
-        "Invalid operators or numbers present in expression: " +
-        trimmedExpression);
+        "Expression "s + trimmedExpression +
+        " is invalid: Invalid operators or numbers present");
   }
-  // Check for valid ordering of operators and operands
+  // Check for valid ordering of operators, operands and parentheses
+  char firstChar{trimmedExpression.front()};
+  if (isBinaryOperator(firstChar) && firstChar != '+' && firstChar != '-') {
+    throw std::runtime_error("Expression "s + trimmedExpression +
+                             " is invalid: Begins with binary operator" +
+                             trimmedExpression.front());
+  }
   for (size_t i{0}; i < trimmedExpression.size() - 1; i++) {
     char curChar{trimmedExpression[i]};
+    char nextChar{trimmedExpression[i + 1]};
+    if (curChar == '(' && isBinaryOperator(nextChar) && nextChar != '+' &&
+        nextChar != '-') {
+      throw std::runtime_error("Expression "s + trimmedExpression +
+                               " is invalid: contains binary operator " +
+                               nextChar + " with no left operand");
+    }
     if (!isBinaryOperator(curChar)) {
       continue;
     }
-    char nextChar{trimmedExpression[i + 1]};
     if (isBinaryOperator(nextChar)) {
       throw std::runtime_error(
-          "Expression is invalid: contains two consecutive binary operators "s +
-          curChar + " and " + nextChar);
+          "Expression " + trimmedExpression +
+          " is invalid: contains two consecutive binary operators "s + curChar +
+          " and " + nextChar);
     }
     if (nextChar == ')') {
-      throw std::runtime_error(
-          "Expression is invalid: contains binary operator "s + curChar +
-          "with no right operand");
+      throw std::runtime_error("Expression "s + trimmedExpression +
+                               " is invalid: contains binary operator " +
+                               curChar + " with no right operand");
     }
   }
   if (isBinaryOperator(trimmedExpression.back())) {
-    throw std::runtime_error(
-        "Expression is invalid: ends with binary operator "s +
-        trimmedExpression.back());
+    throw std::runtime_error("Expression "s + trimmedExpression +
+                             " is invalid: ends with binary operator " +
+                             trimmedExpression.back());
   }
   isValidated_ = true;
   trimmedExpression_ = trimmedExpression;

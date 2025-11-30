@@ -43,8 +43,9 @@ const std::vector<std::pair<std::string, double>> complexExprResults = {
      {"2^(2)*cos(0.0)", 4.0},
      {"cos(cos(3.14159/2))", 1.0}}};
 
-const std::vector<std::string> invalidExpressions = {"(1+2", "cos(0.0", "5-*4",
-                                                     "-"};
+const std::vector<std::string> invalidExpressions = {
+    "(1+2",   "1+2)", "cos(0.0", "5-*4",    "(((1+1)+2)",
+    "(5-2/)", "-",    "/1",      "1+(^2-1)"};
 
 TEST_CASE("Expression: Result correctness") {
   SECTION("Basic Expressions") {
