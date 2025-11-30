@@ -93,10 +93,16 @@ void Expression::validate() {
     if (!isBinaryOperator(curChar)) {
       continue;
     }
-    if (isBinaryOperator(trimmedExpression[i + 1])) {
+    char nextChar{trimmedExpression[i + 1]};
+    if (isBinaryOperator(nextChar)) {
       throw std::runtime_error(
           "Expression is invalid: contains two consecutive binary operators "s +
-          curChar + " and " + trimmedExpression[i + 1]);
+          curChar + " and " + nextChar);
+    }
+    if (nextChar == ')') {
+      throw std::runtime_error(
+          "Expression is invalid: contains binary operator "s + curChar +
+          "with no right operand");
     }
   }
   if (isBinaryOperator(trimmedExpression.back())) {
