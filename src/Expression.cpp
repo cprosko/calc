@@ -87,6 +87,11 @@ void Expression::validate() {
         "Invalid operators or numbers present in expression: " +
         trimmedExpression);
   }
+  // Check for valid ordering of operators and operands
+  char lastChar;
+  for (char c : trimmedExpression) {
+    // TODO: address cases like -*
+  }
   isValidated_ = true;
   trimmedExpression_ = trimmedExpression;
   return;
@@ -251,8 +256,8 @@ Expression::tokenizedExpression_(const std::string &expression) {
 
       closingIndex += static_cast<size_t>(match[1].length() + 1);
       if (closingIndex + 1 == remainingExpression.size()) {
-        // expression is just function call on inner expression
-        if (hasFrontMultiplier) {
+        // remainingExpression is just function call on inner expression
+        if (binaryOperators.size() > 0) {
           subexpressions.push_back(Expression(remainingExpression));
           break;
         }
