@@ -3,7 +3,13 @@ cmake_minimum_required(VERSION 3.28)
 project(calc)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON) # Create compile_commands.json for linter
 # Packages
-find_package(Catch2 REQUIRED)
+include(FetchContent)
+FetchContent_Declare(
+  catch2
+  GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+  GIT_TAG v3.6.0
+)
+FetchContent_MakeAvailable(catch2)
 
 # Force C++23 standard
 set(CMAKE_CXX_STANDARD 23)
@@ -43,7 +49,6 @@ add_executable(test test/test.cpp)
 set_target_properties(test PROPERTIES EXCLUDE_FROM_ALL TRUE)
 target_link_libraries(test PRIVATE ExpressionLogic)
 target_link_libraries(test PRIVATE Catch2::Catch2WithMain)
-target_compile_options(test PRIVATE ${WARNING_FLAGS})
 
 # Debug Executable
 add_executable(debug src/debug_main.cpp)
