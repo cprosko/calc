@@ -88,13 +88,39 @@ void Expression::validate() {
         trimmedExpression);
   }
   // Check for valid ordering of operators and operands
-  char lastChar;
-  for (char c : trimmedExpression) {
-    // TODO: address cases like -*
+  for (size_t i{0}; i < trimmedExpression.size() - 1; i++) {
+    char curChar{trimmedExpression[i]};
+    if (!isBinaryOperator(curChar)) {
+      continue;
+    }
+    if (isBinaryOperator(trimmedExpression[i + 1])) {
+      throw std::runtime_error(
+          "Expression is invalid: contains two consecutive binary operators "s +
+          curChar + " and " + trimmedExpression[i + 1]);
+    }
+  }
+  if (isBinaryOperator(trimmedExpression.back())) {
+    throw std::runtime_error(
+        "Expression is invalid: ends with binary operator "s +
+        trimmedExpression.back());
   }
   isValidated_ = true;
   trimmedExpression_ = trimmedExpression;
   return;
+}
+
+bool Expression::isBinaryOperator(const char c) {
+  switch (c) {
+  case '+':
+  case '-':
+  case '*':
+  case 'x':
+  case '/':
+  case '^':
+  case '%':
+    return true;
+  }
+  return false;
 }
 
 double Expression::calculate(const std::string &expression) {

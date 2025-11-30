@@ -120,6 +120,8 @@ public:
   void printCalculation();
   /// Partially check whether a string is a valid mathematical expression
   void validate();
+  /// Whether character is a binary operator like +,-,*,x,/,%
+  static bool isBinaryOperator(char c);
   /// Whether or not the expression is a number or nontrivial expression
   bool isAtomic();
   /// Whether or not input expression string was validated
