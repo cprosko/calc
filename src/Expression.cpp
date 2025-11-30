@@ -54,15 +54,45 @@ std::string Expression::expression() {
   return expression_;
 }
 
-void Expression::set_expression(const std::string& expression) {
+void Expression::set_expression(const std::string &expression) {
   isParsed_ = false;
   isCalculated_ = false;
-  isValidated_ = false;
-  validate_(expression);
   expression_ = expression;
+  validate();
 }
 
-double Expression::calculate(const std::string& expression) {
+void Expression::validate() {
+  isValidated_ = false;
+  // Check parentheses are matched
+  auto leftBrackets{std::count(expression_.begin(), expression_.end(), '(')};
+  if (leftBrackets != std::count(expression_.begin(), expression_.end(), ')'))
+    throw std::runtime_error("Unmatched parentheses in expression.");
+  // Trim whitespace
+  std::string trimmedExpression{expression_};
+  std::erase_if(trimmedExpression,
+                [](unsigned char c) { return std::isspace(c); });
+  // Remove unnecessary outer parentheses
+  while (trimmedExpression.front() == '(' &&
+         closingBracketIndex_(trimmedExpression) + 1 ==
+             trimmedExpression.size()) {
+    trimmedExpression.erase(trimmedExpression.begin());
+    trimmedExpression.pop_back();
+  }
+  // Remove leading '+' sign
+  if (trimmedExpression.front() == '+')
+    trimmedExpression.erase(trimmedExpression.begin());
+  // Check operators are all valid
+  if (!std::regex_match(trimmedExpression, exprPattern_)) {
+    throw std::runtime_error(
+        "Invalid operators or numbers present in expression: " +
+        trimmedExpression);
+  }
+  isValidated_ = true;
+  trimmedExpression_ = trimmedExpression;
+  return;
+}
+
+double Expression::calculate(const std::string &expression) {
   set_expression(expression);
   return result();
 }
@@ -77,7 +107,7 @@ double Expression::result() {
     parse_();
   }
   if (isAtomic_) {
-    return result_;  // Value has been calculated inside parse_()
+    return result_; // Value has been calculated inside parse_()
   }
   result_ = std::numeric_limits<double>::quiet_NaN();
   result_ = calculate_(outerStep_);
@@ -104,7 +134,7 @@ bool Expression::isAtomic() {
 // ----------------------------------------------------------------------------
 // Private Methods
 // ----------------------------------------------------------------------------
-double Expression::parsedNumber_(const std::string& numStr) {
+double Expression::parsedNumber_(const std::string &numStr) {
   std::string cleaned;
   // Remove any parentheses and whitespace from the string
   cleaned.reserve(numStr.size());
@@ -117,35 +147,6 @@ double Expression::parsedNumber_(const std::string& numStr) {
   return std::stod(cleaned);
 }
 
-void Expression::validate_(const std::string& expression) {
-  // Check parentheses are matched
-  auto leftBrackets{std::count(expression.begin(), expression.end(), '(')};
-  if (leftBrackets != std::count(expression.begin(), expression.end(), ')'))
-    throw std::runtime_error("Unmatched parentheses in expression.");
-  // Trim whitespace
-  std::string trimmedExpression{expression};
-  std::erase_if(trimmedExpression,
-                [](unsigned char c) { return std::isspace(c); });
-  // Remove unnecessary outer parentheses
-  while (trimmedExpression.front() == '(' &&
-         closingBracketIndex_(trimmedExpression) + 1 ==
-             trimmedExpression.size()) {
-    trimmedExpression.erase(trimmedExpression.begin());
-    trimmedExpression.pop_back();
-  }
-  // Remove leading '+' sign
-  if (trimmedExpression.front() == '+')
-    trimmedExpression.erase(trimmedExpression.begin());
-  // Check operators are all valid
-  if (!std::regex_match(trimmedExpression, exprPattern_)) {
-    throw std::runtime_error(
-        "Invalid operators or numbers present in expression: " +
-        trimmedExpression);
-  }
-  trimmedExpression_ = trimmedExpression;
-  return;
-}
-
 // Arrange expression into subexpressions
 // Arranged such that outermost expression consists of the last operation to
 // calculate on subexpressions according to BEDMAS, so full result can be found
@@ -153,7 +154,7 @@ void Expression::validate_(const std::string& expression) {
 void Expression::parse_() {
   // TODO: Add printing statements when showCalculation_ == true
   if (!isValidated_) {
-    validate_(expression_);
+    validate();
   }
   // Clear previous results
   tokens_.tokens.clear();
@@ -176,60 +177,60 @@ void Expression::parse_() {
   outerStep_ = lastCalculationStep_(tokens_);
 }
 
-Expression::TokenizedExpression Expression::tokenizedExpression_(
-    const std::string& expression) {
+Expression::TokenizedExpression
+Expression::tokenizedExpression_(const std::string &expression) {
   std::vector<Expression> subexpressions;
-  Operator function{Operator::None};      // on whole expression
-  std::vector<Operator> binaryOperators;  // between subexpressions
+  Operator function{Operator::None};     // on whole expression
+  std::vector<Operator> binaryOperators; // between subexpressions
   std::string remainingExpression;
   // Check for leading operators
   bool hasFrontMultiplier{false};
   switch (expression.front()) {
-    case '-':
-      hasFrontMultiplier = true;
-      subexpressions.push_back(Expression(-1.0));
-      binaryOperators.push_back(Operator::Times);
-      remainingExpression = expression.substr(1);
-      break;
-    case '+':
-      remainingExpression = expression.substr(1);
-      break;
-    case 'x':
-    case '/':
-    case '*':
-    case '^':
-    case '%':
-      throw std::runtime_error("Leading binary operator found in expression.");
-    default:
-      remainingExpression = expression;
+  case '-':
+    hasFrontMultiplier = true;
+    subexpressions.push_back(Expression(-1.0));
+    binaryOperators.push_back(Operator::Times);
+    remainingExpression = expression.substr(1);
+    break;
+  case '+':
+    remainingExpression = expression.substr(1);
+    break;
+  case 'x':
+  case '/':
+  case '*':
+  case '^':
+  case '%':
+    throw std::runtime_error("Leading binary operator found in expression.");
+  default:
+    remainingExpression = expression;
   }
 
   // Tokenize the string from left to right into subexpressions and operators
   bool prevTokenWasBinOp{false};
   std::smatch match;
   while (remainingExpression.size() > 0) {
-    size_t closingIndex;     // End index of token
-    bool foundMatch{false};  // Used to avoid regex matching when unnecessary
+    size_t closingIndex;    // End index of token
+    bool foundMatch{false}; // Used to avoid regex matching when unnecessary
     char frontChar{remainingExpression.front()};
     switch (frontChar) {
-      case '+':
-      case '-':
-      case 'x':
-      case '*':
-      case '/':
-      case '^':
-      case '%':
-        binaryOperators.push_back(operators_.at(std::string(1, frontChar)));
-        prevTokenWasBinOp = true;
-        remainingExpression = remainingExpression.substr(1);
-        continue;
-      case '(':
-        closingIndex = closingBracketIndex_(remainingExpression);
-        subexpressions.push_back(
-            Expression(remainingExpression.substr(1, closingIndex - 1)));
-        remainingExpression = remainingExpression.substr(closingIndex + 1);
-        prevTokenWasBinOp = false;
-        foundMatch = true;
+    case '+':
+    case '-':
+    case 'x':
+    case '*':
+    case '/':
+    case '^':
+    case '%':
+      binaryOperators.push_back(operators_.at(std::string(1, frontChar)));
+      prevTokenWasBinOp = true;
+      remainingExpression = remainingExpression.substr(1);
+      continue;
+    case '(':
+      closingIndex = closingBracketIndex_(remainingExpression);
+      subexpressions.push_back(
+          Expression(remainingExpression.substr(1, closingIndex - 1)));
+      remainingExpression = remainingExpression.substr(closingIndex + 1);
+      prevTokenWasBinOp = false;
+      foundMatch = true;
     }
     // Is remaining expression wrapped in brackets?
     if (!foundMatch &&
@@ -267,7 +268,8 @@ Expression::TokenizedExpression Expression::tokenizedExpression_(
     } else if (!foundMatch) {
       throw std::runtime_error("Unexpected token found during tokenization.");
     }
-    if (prevTokenWasBinOp) binaryOperators.push_back(Operator::Times);
+    if (prevTokenWasBinOp)
+      binaryOperators.push_back(Operator::Times);
     foundMatch = false;
   }
   TokenizedExpression result = {.tokens = subexpressions,
@@ -276,7 +278,7 @@ Expression::TokenizedExpression Expression::tokenizedExpression_(
   return result;
 }
 
-Expression::Step Expression::lastCalculationStep_(TokenizedExpression& tokens) {
+Expression::Step Expression::lastCalculationStep_(TokenizedExpression &tokens) {
   Step lastStep;
   // Assumes that any functions are present, they wrap the whole expression
   if (tokens.tokens.size() == 1) {
@@ -344,9 +346,9 @@ Expression::Step Expression::lastCalculationStep_(TokenizedExpression& tokens) {
   return lastStep;
 }
 
-Expression Expression::combinedTokens_(TokenizedExpression& tokens,
-                                       const size_t& startInd,
-                                       const size_t& stopInd) {
+Expression Expression::combinedTokens_(TokenizedExpression &tokens,
+                                       const size_t &startInd,
+                                       const size_t &stopInd) {
   if (stopInd - startInd < 1)
     throw std::runtime_error("Attempting to 'combine' zero tokens.");
   auto tokenSlice = tokens.tokens | std::views::drop(startInd) |
@@ -360,7 +362,7 @@ Expression Expression::combinedTokens_(TokenizedExpression& tokens,
   return Expression(subTokens);
 }
 
-size_t Expression::closingBracketIndex_(const std::string& str,
+size_t Expression::closingBracketIndex_(const std::string &str,
                                         const bool includeFrontBracket) {
   // Find char index of ')' matching some '(' at front or left of string
   // Returns -1 if no match is found.
@@ -376,85 +378,86 @@ size_t Expression::closingBracketIndex_(const std::string& str,
       break;
     }
   }
-  if (unclosedBrackets == 0) return charInd;
+  if (unclosedBrackets == 0)
+    return charInd;
   throw std::runtime_error("No matching close bracket found.");
 }
 
-double Expression::calculate_(const Operator& numOperator,
+double Expression::calculate_(const Operator &numOperator,
                               const double operand) {
   double value{std::numeric_limits<double>::quiet_NaN()};
   switch (numOperator) {
-    case Operator::None:
-      value = operand;
-      break;
-    case Operator::Exp:
-      value = std::exp(operand);
-      break;
-    case Operator::Sqrt:
-      value = std::sqrt(operand);
-      break;
-    case Operator::Ln:
-      value = std::log(operand);
-      break;
-    case Operator::Log:
-      value = std::log10(operand);
-      break;
-    case Operator::Sin:
-      value = std::sin(operand);
-      break;
-    case Operator::Cos:
-      value = std::cos(operand);
-      break;
-    case Operator::Tan:
-      value = std::tan(operand);
-      break;
-    case Operator::Sinh:
-      value = std::sinh(operand);
-      break;
-    case Operator::Cosh:
-      value = std::cosh(operand);
-      break;
-    case Operator::Tanh:
-      value = std::tanh(operand);
-      break;
-    default:
-      throw std::runtime_error("Invalid operator given single operand.");
+  case Operator::None:
+    value = operand;
+    break;
+  case Operator::Exp:
+    value = std::exp(operand);
+    break;
+  case Operator::Sqrt:
+    value = std::sqrt(operand);
+    break;
+  case Operator::Ln:
+    value = std::log(operand);
+    break;
+  case Operator::Log:
+    value = std::log10(operand);
+    break;
+  case Operator::Sin:
+    value = std::sin(operand);
+    break;
+  case Operator::Cos:
+    value = std::cos(operand);
+    break;
+  case Operator::Tan:
+    value = std::tan(operand);
+    break;
+  case Operator::Sinh:
+    value = std::sinh(operand);
+    break;
+  case Operator::Cosh:
+    value = std::cosh(operand);
+    break;
+  case Operator::Tanh:
+    value = std::tanh(operand);
+    break;
+  default:
+    throw std::runtime_error("Invalid operator given single operand.");
   }
   checkNaN_(value);
   return value;
 }
 
-double Expression::calculate_(const Operator& numOperator,
+double Expression::calculate_(const Operator &numOperator,
                               const double leftOperand,
                               const double rightOperand) {
   double value{std::numeric_limits<double>::quiet_NaN()};
   switch (numOperator) {
-    case Operator::Plus:
-      value = leftOperand + rightOperand;
-      break;
-    case Operator::Minus:
-      value = leftOperand - rightOperand;
-      break;
-    case Operator::Times:
-      value = leftOperand * rightOperand;
-      break;
-    case Operator::Divide:
-      value = leftOperand / rightOperand;
-      break;
-    case Operator::Mod:
-      value = std::fmod(leftOperand, rightOperand);
-      break;
-    case Operator::Pow:
-      value = std::pow(leftOperand, rightOperand);
-      break;
-    default:
-      throw std::runtime_error("Invalid operator given two operands.");
+  case Operator::Plus:
+    value = leftOperand + rightOperand;
+    break;
+  case Operator::Minus:
+    value = leftOperand - rightOperand;
+    break;
+  case Operator::Times:
+    value = leftOperand * rightOperand;
+    break;
+  case Operator::Divide:
+    value = leftOperand / rightOperand;
+    break;
+  case Operator::Mod:
+    value = std::fmod(leftOperand, rightOperand);
+    break;
+  case Operator::Pow:
+    value = std::pow(leftOperand, rightOperand);
+    break;
+  default:
+    throw std::runtime_error("Invalid operator given two operands.");
   }
   checkNaN_(value);
   return value;
 }
 
-double Expression::calculate_(Step& step) {
+double Expression::calculate_(Step &step) {
   // Apply operators to operands left-to-right
   // Assumes unary operators only appear when there is one operand
   if (step.operands.size() == 1) {
@@ -477,7 +480,7 @@ double Expression::calculate_(Step& step) {
 const std::unordered_map<Expression::Operator, std::string_view>
 Expression::constructOperatorStrings_() {
   std::unordered_map<Operator, std::string_view> map;
-  for (const auto& [key, value] : operators_) {
+  for (const auto &[key, value] : operators_) {
     if (value == Operator::Times) {
       map[value] = "x";
       continue;
@@ -490,8 +493,9 @@ Expression::constructOperatorStrings_() {
 const std::regex Expression::constructExprPattern_() {
   std::string pattern;
   bool first{true};
-  for (const auto& [key, value] : operators_) {
-    if (!first) pattern += '|';
+  for (const auto &[key, value] : operators_) {
+    if (!first)
+      pattern += '|';
     pattern += escapeRegex_(key);
     first = false;
   }

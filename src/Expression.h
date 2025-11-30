@@ -27,17 +27,17 @@
  * strings.
  *****************************************************************************/
 class Expression {
- public:
+public:
   // Enums
   enum class Operator {
-    None,  /// Represents the identity, or no operation.
+    None, /// Represents the identity, or no operation.
     Plus,
     Minus,
     Times,
     Divide,
-    Pow,  /// One number to the power of another: x^y
+    Pow, /// One number to the power of another: x^y
     Mod,
-    Exp,  /// A power of Euler's number: e^()
+    Exp, /// A power of Euler's number: e^()
     Sqrt,
     Ln,
     Log,
@@ -65,52 +65,27 @@ class Expression {
 
   // Ensure default constructor exists even though we've defined others
   Expression()
-      : expression_(),
-        trimmedExpression_(),
-        isValidated_(false),
-        isParsed_(false),
-        isTokenized_(false),
-        isCalculated_(false),
-        isAtomic_(false),
-        showCalculation_(false),
-        isSubexpression_(false),
-        result_(0.0),
-        precision_(3),
-        tokens_(),
-        outerStep_() {}
-  explicit Expression(const std::string& expr, bool isSubexpression = false,
+      : expression_(), trimmedExpression_(), isValidated_(false),
+        isParsed_(false), isTokenized_(false), isCalculated_(false),
+        isAtomic_(false), showCalculation_(false), isSubexpression_(false),
+        result_(0.0), precision_(3), tokens_(), outerStep_() {}
+  explicit Expression(const std::string &expr, bool isSubexpression = false,
                       bool showCalculation = false)
-      : expression_(expr),
-        trimmedExpression_(),
-        isValidated_(isSubexpression),
-        isParsed_(false),
-        isTokenized_(false),
-        isCalculated_(false),
-        isAtomic_(false),
-        showCalculation_(showCalculation),
-        isSubexpression_(isSubexpression),
-        result_(0.0),
-        precision_(3),
-        tokens_(),
-        outerStep_() {
+      : expression_(expr), trimmedExpression_(), isValidated_(isSubexpression),
+        isParsed_(false), isTokenized_(false), isCalculated_(false),
+        isAtomic_(false), showCalculation_(showCalculation),
+        isSubexpression_(isSubexpression), result_(0.0), precision_(3),
+        tokens_(), outerStep_() {
     if (showCalculation)
       std::cout << "Expression instantiated: " << expression() << std::endl;
   }
-  explicit Expression(TokenizedExpression& tokens, bool isSubexpression = true,
+  explicit Expression(TokenizedExpression &tokens, bool isSubexpression = true,
                       bool showCalculation = false)
-      : expression_(),
-        trimmedExpression_(),
-        isValidated_(isSubexpression),
-        isParsed_(false),
-        isTokenized_(true),
-        isCalculated_(false),
-        isAtomic_(false),
-        showCalculation_(showCalculation),
-        isSubexpression_(isSubexpression),
-        result_(0.0),
-        precision_(3),
-        tokens_(tokens),
-        outerStep_() {
+      : expression_(), trimmedExpression_(), isValidated_(isSubexpression),
+        isParsed_(false), isTokenized_(true), isCalculated_(false),
+        isAtomic_(false), showCalculation_(showCalculation),
+        isSubexpression_(isSubexpression), result_(0.0), precision_(3),
+        tokens_(tokens), outerStep_() {
     if (tokens.tokens.size() == 1) {
       if (tokens.tokens[0].isCalculated_) {
         isCalculated_ = true;
@@ -125,36 +100,32 @@ class Expression {
       std::cout << "Expression instantiated: " << expression() << std::endl;
   }
   explicit Expression(double result, bool isSubexpression = true)
-      : expression_(),
-        trimmedExpression_(),
-        isValidated_(true),
-        isParsed_(true),
-        isTokenized_(true),
-        isCalculated_(true),
-        isAtomic_(true),
-        showCalculation_(false),
-        isSubexpression_(isSubexpression),
-        result_(result),
-        precision_(3),
-        tokens_(),
-        outerStep_() {}
+      : expression_(), trimmedExpression_(), isValidated_(true),
+        isParsed_(true), isTokenized_(true), isCalculated_(true),
+        isAtomic_(true), showCalculation_(false),
+        isSubexpression_(isSubexpression), result_(result), precision_(3),
+        tokens_(), outerStep_() {}
 
   // Public methods
 
   /// The string form of this mathematical Expression
   std::string expression();
   /// Reset the Expression with a new mathematical Expression
-  void set_expression(const std::string& expression);
+  void set_expression(const std::string &expression);
+  /// Set a new expression and calculate the result()
+  double calculate(const std::string &expression);
   /// Calculate or retrieve the result of the expression
   double result();
-  /// Set a new expression and calculate the result()
-  double calculate(const std::string& expression);
   /// TODO: Not implemented
   void printCalculation();
+  /// Partially check whether a string is a valid mathematical expression
+  void validate();
   /// Whether or not the expression is a number or nontrivial expression
   bool isAtomic();
+  /// Whether or not input expression string was validated
+  bool isValidated() { return isValidated_; }
 
- private:
+private:
   // Private constants
 
   /// Correspondence between written operators and their Operator representation
@@ -173,34 +144,33 @@ class Expression {
   // Private methods
 
   /// Translates a number in string form into a double for calculation
-  static double parsedNumber_(const std::string& numStr);
-  /// Partially check whether a string is a valid mathematical expression
-  void validate_(const std::string& expression);
+  static double parsedNumber_(const std::string &numStr);
   /// Parse the expression into tokens and determine the first calculation step
   void parse_();
   /// Parse an expression into token Expressions and operators for calculation
-  static TokenizedExpression tokenizedExpression_(
-      const std::string& expression);
+  static TokenizedExpression
+  tokenizedExpression_(const std::string &expression);
   /// Determine the last calculation step according to BEDMAS, for recursive
   /// evaluation
-  static Step lastCalculationStep_(TokenizedExpression& tokens);
+  static Step lastCalculationStep_(TokenizedExpression &tokens);
   /// Merge tokens and operations back into a single Expression
-  static Expression combinedTokens_(TokenizedExpression& tokens,
-                                    const size_t& startInd,
-                                    const size_t& stopInd);
+  static Expression combinedTokens_(TokenizedExpression &tokens,
+                                    const size_t &startInd,
+                                    const size_t &stopInd);
   /// Find the ')' parenthesis character index matching a beginning '('
-  static size_t closingBracketIndex_(const std::string& str,
+  static size_t closingBracketIndex_(const std::string &str,
                                      const bool includeFrontBracket = false);
   /// Calculate a mathematical operation bundled as a Step object
-  static double calculate_(Step& step);
+  static double calculate_(Step &step);
   /// Calculate a unary mathematical Operator on a number
-  static double calculate_(const Operator& oper, const double operand);
+  static double calculate_(const Operator &oper, const double operand);
   /// Calculate a binary mathematical Operator acting on two numbers
-  static double calculate_(const Operator& oper, const double leftOperand,
+  static double calculate_(const Operator &oper, const double leftOperand,
                            const double rightOperand);
   /// Warn if an input number is not a number
   static void checkNaN_(double num) {
-    if (std::isnan(num)) std::cout << "Warning: num is NaN." << '\n';
+    if (std::isnan(num))
+      std::cout << "Warning: num is NaN." << '\n';
   }
   /// Generate the Operator-string map
   static const std::unordered_map<Operator, std::string_view>
@@ -216,14 +186,14 @@ class Expression {
   std::string expression_;
   /// String form of this Expression with whitespace and outer brackets removed
   std::string trimmedExpression_;
-  bool isValidated_;   /// Whether the Expression string has been validated
-  bool isParsed_;      /// Whether the Expression string has been parsed fully
-  bool isTokenized_;   /// Whether the Expression string has been tokenized
-  bool isCalculated_;  /// Whether the result of the Expression is calculated
-  bool isAtomic_;      /// Whether the expression is just a number or compound
-  bool showCalculation_;  /// Whether to show verbose output of calculations
-  bool isSubexpression_;  /// Whether Expression is subexpression to a parent
-  double result_;         /// Result of the mathematical expression
+  bool isValidated_;     /// Whether the Expression string has been validated
+  bool isParsed_;        /// Whether the Expression string has been parsed fully
+  bool isTokenized_;     /// Whether the Expression string has been tokenized
+  bool isCalculated_;    /// Whether the result of the Expression is calculated
+  bool isAtomic_;        /// Whether the expression is just a number or compound
+  bool showCalculation_; /// Whether to show verbose output of calculations
+  bool isSubexpression_; /// Whether Expression is subexpression to a parent
+  double result_;        /// Result of the mathematical expression
   /// Number of digits to show after decimal in scientific notation
   int precision_;
   /// Expression broken down into sub-Expressions and Operators
