@@ -45,7 +45,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ExpressionLogic)
 target_compile_options(${PROJECT_NAME} PRIVATE ${WARNING_FLAGS})
 
 # Tests executable
-add_executable(test test/test.cpp)
+add_executable(test test/test.cpp src/ArgParser.cpp)
+target_include_directories(test PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
 set_target_properties(test PROPERTIES EXCLUDE_FROM_ALL TRUE)
 target_link_libraries(test PRIVATE ExpressionLogic)
 target_link_libraries(test PRIVATE Catch2::Catch2WithMain)
