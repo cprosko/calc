@@ -170,6 +170,8 @@ void Expression::printCalculation() {
   showCalculation_ = true;
   isCalculated_ = false;
   parse_();
+  auto oldPrecision{std::cout.precision()};
+  std::cout.precision(precision);
   std::cout << trimmedExpression_ << '\n';
   if (isAtomic_) {
     std::cout << "Result: " << result_ << '\n';
@@ -182,6 +184,7 @@ void Expression::printCalculation() {
     printPartialCalculation_();
   }
   std::cout << "Result: " << result() << '\n';
+  std::cout << std::setprecision(oldPrecision);
   showCalculation_ = false;
 }
 
