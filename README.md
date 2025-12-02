@@ -60,4 +60,8 @@ following functions:
 -ln(4*3)^2+(9-2+3)
 -1x2.48491^2+10
 Result: 3.82524
+> calc -p 3 -v "cos(sqrt(2)^(2/3))"
+cos(sqrt(2)^(2/3))
+cos(1.26)
+Result: 0.306
 ```
