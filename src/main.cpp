@@ -10,8 +10,9 @@ calc: Calculate a mathematical expression.\n\
 Usage: calc [-h|--help] [-p|--precision <num_digits>] <expression_args>\n\
 \n\
 Options:\n\
-  -p|--precision <num_digits>: Set number of digits after decimal to display\n\
-    in final result to <num_digits> if nonzero.\n\
+  -p|--precision <num_digits>: Set number of digits to display in final\n\
+    result to <num_digits> except trailing zeros. Defaults to 6\n\
+  -v|--verbose: Print each step in calculation of the expression\n\
   -h|--help: Display this help string\n\
 Arguments:\n\
   <expression_args>: Any number of arguments which, when concatenated,\n\

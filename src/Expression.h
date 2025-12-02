@@ -120,7 +120,7 @@ public:
   double calculate(const std::string &expression);
   /// Calculate or retrieve the result of the expression
   double result();
-  /// TODO: Not implemented
+  /// Calculate and print result along with each calculation step
   void printCalculation();
   /// Partially check whether a string is a valid mathematical expression
   void validate();
@@ -153,9 +153,9 @@ private:
 
   // Private methods
 
-  /// TODO: Not implemented
+  /// Calculate each lowest-level uncalculated subexpression
   void calculateNextStep_();
-  /// TODO: Not implemented
+  /// Print Expression substituting calculated subexpressions with their result
   void printPartialCalculation_();
   /// Whether all immediate child expressions have been calculated
   bool subexpressionsCalculated_();

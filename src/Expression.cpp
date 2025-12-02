@@ -284,7 +284,6 @@ double Expression::parsedNumber_(const std::string &numStr) {
 // calculate on subexpressions according to BEDMAS, so full result can be found
 // recursively.
 void Expression::parse_() {
-  // TODO: Add printing statements when showCalculation_ == true
   if (!isValidated_) {
     validate();
   }

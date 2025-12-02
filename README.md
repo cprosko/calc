@@ -22,13 +22,14 @@ installed.
 
 ### Basic Usage
 ```bash
-calc [-h|--help] [-p|--precision <num_digits>] <expression_args>
+calc [-h|--help] [-p|--precision <num_digits>] [-v|--verbose] <expression_args>
 ```
 
 **Options:**
 
 - `-p|--precision <num_digits>`: Set number of digits to display in final
-    result to `<num_digits>` except trailing zeros. Defaults to 6.
+    result to `<num_digits>` except trailing zeros. Defaults to 6
+- `-v|--verbose`: Print each step in calculation of the expression
 - `-h|--help`: Display the command help
 
 ### Arguments
@@ -55,4 +56,8 @@ following functions:
 7
 > calc -p 8 "ln(3) + 3^2*sin(2.3)*cos(1.2)^2"
 1.9798332
+> calc -v "-ln(4*3)^2+(9-2+3)"
+-ln(4*3)^2+(9-2+3)
+-1x2.48491^2+10
+Result: 3.82524
 ```
