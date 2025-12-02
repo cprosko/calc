@@ -5,7 +5,7 @@
 #include <string>
 
 /// Parse options in argv and concatenate remaining args into argStr_
-void ArgParser::parse(int argc, const char* const argv[]) {
+void ArgParser::parse(int argc, const char *const argv[]) {
   if (argc == 1) {
     std::cout << "No input provided.\n";
     displayHelp();
@@ -21,6 +21,10 @@ void ArgParser::parse(int argc, const char* const argv[]) {
       shouldExit_ = true;
       return;
     }
+    if (arg == "-v" || arg == "--verbose") {
+      verbose = true;
+      continue;
+    }
     if (arg == "-p" || arg == "--precision") {
       if (i + 1 >= argc) {
         std::cerr
@@ -31,7 +35,7 @@ void ArgParser::parse(int argc, const char* const argv[]) {
       }
       try {
         precision_ = std::stoi(argv[i + 1]);
-      } catch (const std::invalid_argument& e) {
+      } catch (const std::invalid_argument &e) {
         std::cerr
             << "Error: -p|--precision requires a trailing integer argument"
             << std::endl;
