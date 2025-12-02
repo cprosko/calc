@@ -21,12 +21,11 @@ installed.
 
 ## Usage
 
-### Basic Usage
 ```bash
 calc [-h|--help] [-p|--precision <num_digits>] [-v|--verbose] <expression_args>
 ```
 
-**Options:**
+### Options
 
 - `-p|--precision <num_digits>`: Set number of digits to display in final
     result to `<num_digits>` except trailing zeros. Defaults to 6
