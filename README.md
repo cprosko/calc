@@ -2,7 +2,8 @@
 
 `calc` is a command-line scientific calculator written in `C++`. It is meant to
 enable calculating arbitrary nested mathematical expressions in a one-liner,
-*ie.* without entering a separate user interface.
+*ie.* without entering a separate user interface. It can also optionally show
+intermediate calculation steps and display results with a custom precision.
 
 ## Installation
 
