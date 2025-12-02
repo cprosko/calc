@@ -28,6 +28,7 @@ void resetOstringstream(std::ostringstream &oss) {
 
 const std::vector<std::pair<std::string, double>> basicExprResults = {
     {{"123.456", 123.456},
+     {"(1 + 2)*3", 9.0},
      {"1 + 1", 2.0},
      {"2 x 3 + 4", 10.0},
      {"2 + 3 x 4", 14.0},
@@ -215,6 +216,33 @@ TEST_CASE("calc: Option Parsing") {
     }
   }
 
+  SECTION("Passing verbose argument") {
+    SECTION("Passing -v before expression") {
+      const char *argv[] = {programName, (char *)"-v", (char *)"(1+2)*3"};
+      ArgParser parser(helpStr);
+      parser.parse(3, argv);
+      SECTION("Checking parser doesn't mark shouldExit") {
+        INFO("Parser received -v # <expression> but flagged shouldExit() == "
+             "true");
+        REQUIRE(parser.shouldExit() == false);
+      }
+      Expression expression(parser.argString());
+      SECTION("Checking parser parses correct input expression") {
+        INFO("ArgParser parsed expression (1+2)*3 incorrectly as " +
+             parser.argString());
+        REQUIRE(expression.expression() == "(1+2)*3");
+      }
+      SECTION("Checking printCalculation() runs without error") {
+        INFO("Expression calculation resulted in error for valid expression");
+        REQUIRE_NOTHROW(expression.printCalculation());
+      }
+      SECTION("Checking for correct calculation result") {
+        double result{expression.result()};
+        INFO("Expected result 9 for expression (1+2)*3 but got " << result);
+        REQUIRE(nearEqual(result, 9.0));
+      }
+    }
+  }
   // Undo redirection of stdout buf
   std::cout.rdbuf(oldCoutBuf);
 }
