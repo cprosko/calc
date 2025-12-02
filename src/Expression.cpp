@@ -26,7 +26,7 @@ std::string Expression::expression() {
   if (tokens_.tokens.size() == 0) {
     if (isCalculated_) {
       std::ostringstream oss;
-      oss << std::setprecision(precision_) << result();
+      oss << std::setprecision(precision) << result();
       expression_ = oss.str();
       trimmedExpression_ = expression_;
       return expression_;
@@ -170,7 +170,18 @@ void Expression::printCalculation() {
   showCalculation_ = true;
   isCalculated_ = false;
   parse_();
-  std::cout << "Result: " << result_ << '\n';
+  std::cout << trimmedExpression_ << '\n';
+  if (isAtomic_) {
+    std::cout << "Result: " << result_ << '\n';
+    return;
+  }
+  while (!subexpressionsCalculated_()) {
+    for (Expression &token : tokens_.tokens) {
+      token.calculateNextStep_();
+    }
+    printPartialCalculation_();
+  }
+  std::cout << "Result: " << result() << '\n';
   showCalculation_ = false;
 }
 
@@ -184,6 +195,77 @@ bool Expression::isAtomic() {
 // ----------------------------------------------------------------------------
 // Private Methods
 // ----------------------------------------------------------------------------
+void Expression::calculateNextStep_() {
+  if (isCalculated_ || isAtomic()) {
+    return;
+  }
+  if (!isParsed_) {
+    parse_();
+  }
+  // Expressions with wrapping function have 1 token: the function argument
+  if (tokens_.function != Operator::None && tokens_.tokens[0].isCalculated_) {
+    result(); // Evaluate this expression
+    return;
+  }
+  bool uncalculatedSubExpressions{false};
+  for (Expression &token : tokens_.tokens) {
+    if (!token.isCalculated_) {
+      uncalculatedSubExpressions = true;
+      if (token.subexpressionsCalculated_()) {
+        result();
+        continue;
+      }
+      token.calculateNextStep_();
+    }
+  }
+  if (uncalculatedSubExpressions) {
+    return;
+  }
+  result();
+}
+
+void Expression::printPartialCalculation_() {
+  if (isCalculated_) {
+    std::cout << result_ << (isSubexpression_ ? "" : "\n");
+    return;
+  }
+  if (tokens_.function != Operator::None) {
+    std::cout << operatorStrings_.at(tokens_.function) << '(';
+  }
+  if (hasBrackets_) {
+    std::cout << '(';
+  }
+  for (size_t i{0}; i < tokens_.tokens.size(); ++i) {
+    Expression token{tokens_.tokens[i]};
+    if (!token.isParsed_) {
+      token.parse_();
+    }
+    tokens_.tokens[i].printPartialCalculation_();
+    if (i + 1 == tokens_.tokens.size()) {
+      continue;
+    }
+    std::cout << operatorStrings_.at(tokens_.binOps[i]);
+  }
+  if (tokens_.function != Operator::None) {
+    std::cout << ')';
+  }
+  if (hasBrackets_) {
+    std::cout << ')';
+  }
+  if (!isSubexpression_) {
+    std::cout << '\n';
+  }
+}
+
+bool Expression::subexpressionsCalculated_() {
+  for (Expression &token : tokens_.tokens) {
+    if (!token.isCalculated_) {
+      return false;
+    }
+  }
+  return true;
+}
+
 double Expression::parsedNumber_(const std::string &numStr) {
   std::string cleaned;
   // Remove any parentheses and whitespace from the string
@@ -223,27 +305,30 @@ void Expression::parse_() {
   // Break expression down into recursive subexpressions based on BEDMAS
   // arithmetic rules
   // Outer parentheses were removed in trimmedExpression_ during validation
-  tokens_ = tokenizedExpression_(trimmedExpression_);
+  tokenizeExpression_(showCalculation_);
   outerStep_ = lastCalculationStep_(tokens_);
+  isParsed_ = true;
 }
 
-Expression::TokenizedExpression
-Expression::tokenizedExpression_(const std::string &expression) {
+void Expression::tokenizeExpression_(bool showCalculation) {
+  if (!isValidated_) {
+    validate();
+  }
   std::vector<Expression> subexpressions;
   Operator function{Operator::None};     // on whole expression
   std::vector<Operator> binaryOperators; // between subexpressions
   std::string remainingExpression;
   // Check for leading operators
   bool hasFrontMultiplier{false};
-  switch (expression.front()) {
+  switch (trimmedExpression_.front()) {
   case '-':
     hasFrontMultiplier = true;
     subexpressions.push_back(Expression(-1.0));
     binaryOperators.push_back(Operator::Times);
-    remainingExpression = expression.substr(1);
+    remainingExpression = trimmedExpression_.substr(1);
     break;
   case '+':
-    remainingExpression = expression.substr(1);
+    remainingExpression = trimmedExpression_.substr(1);
     break;
   case 'x':
   case '/':
@@ -252,7 +337,7 @@ Expression::tokenizedExpression_(const std::string &expression) {
   case '%':
     throw std::runtime_error("Leading binary operator found in expression.");
   default:
-    remainingExpression = expression;
+    remainingExpression = trimmedExpression_;
   }
 
   // Tokenize the string from left to right into subexpressions and operators
@@ -276,8 +361,8 @@ Expression::tokenizedExpression_(const std::string &expression) {
       continue;
     case '(':
       closingIndex = closingBracketIndex_(remainingExpression);
-      subexpressions.push_back(
-          Expression(remainingExpression.substr(1, closingIndex - 1)));
+      subexpressions.push_back(Expression(
+          remainingExpression.substr(1, closingIndex - 1), showCalculation));
       remainingExpression = remainingExpression.substr(closingIndex + 1);
       prevTokenWasBinOp = false;
       foundMatch = true;
@@ -287,7 +372,8 @@ Expression::tokenizedExpression_(const std::string &expression) {
         std::regex_match(remainingExpression, match, numToken_)) {
       // Construct expression with result already stored, since it's just a
       // double
-      subexpressions.push_back(Expression(std::stod(match[1].str())));
+      subexpressions.push_back(
+          Expression(std::stod(match[1].str()), showCalculation));
       closingIndex = static_cast<size_t>(match[1].length() - 1);
       remainingExpression = match[2].str();
       prevTokenWasBinOp = false;
@@ -303,15 +389,16 @@ Expression::tokenizedExpression_(const std::string &expression) {
       if (closingIndex + 1 == remainingExpression.size()) {
         // remainingExpression is just function call on inner expression
         if (binaryOperators.size() > 0) {
-          subexpressions.push_back(Expression(remainingExpression));
+          subexpressions.push_back(
+              Expression(remainingExpression, showCalculation));
           break;
         }
         function = operators_.at(match[1].str());
-        subexpressions.push_back(Expression(argument));
+        subexpressions.push_back(Expression(argument, showCalculation));
         remainingExpression.clear();
       } else {
-        subexpressions.push_back(
-            Expression(remainingExpression.substr(0, closingIndex + 1)));
+        subexpressions.push_back(Expression(
+            remainingExpression.substr(0, closingIndex + 1), showCalculation));
         remainingExpression = remainingExpression.substr(closingIndex + 1);
         prevTokenWasBinOp = false;
       }
@@ -325,7 +412,8 @@ Expression::tokenizedExpression_(const std::string &expression) {
   TokenizedExpression result = {.tokens = subexpressions,
                                 .binOps = binaryOperators,
                                 .function = function};
-  return result;
+  tokens_ = result;
+  isTokenized_ = true;
 }
 
 Expression::Step Expression::lastCalculationStep_(TokenizedExpression &tokens) {
@@ -398,7 +486,8 @@ Expression::Step Expression::lastCalculationStep_(TokenizedExpression &tokens) {
 
 Expression Expression::combinedTokens_(TokenizedExpression &tokens,
                                        const size_t &startInd,
-                                       const size_t &stopInd) {
+                                       const size_t &stopInd,
+                                       bool showCalculation) {
   if (stopInd - startInd < 1)
     throw std::runtime_error("Attempting to 'combine' zero tokens.");
   auto tokenSlice = tokens.tokens | std::views::drop(startInd) |
@@ -409,7 +498,7 @@ Expression Expression::combinedTokens_(TokenizedExpression &tokens,
       .tokens = std::vector<Expression>(tokenSlice.begin(), tokenSlice.end()),
       .binOps = std::vector<Operator>(operSlice.begin(), operSlice.end()),
   };
-  return Expression(subTokens);
+  return Expression(subTokens, showCalculation);
 }
 
 size_t Expression::closingBracketIndex_(const std::string &str,

@@ -45,6 +45,11 @@ int main(int argc, char *argv[]) {
   if (parsedArgs.shouldExit())
     return 0;
   Expression expression(parsedArgs.argString());
+  if (parsedArgs.verbose) {
+    expression.precision = parsedArgs.precision();
+    expression.printCalculation();
+    return 0;
+  }
   std::cout << std::setprecision(parsedArgs.precision()) << expression.result()
             << std::endl;
   return 0;
